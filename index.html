@@ -632,7 +632,7 @@ function agentStars(){ const s=Math.min(5,Math.floor(agentLevel()/4)+1); return 
 const BLUEPRINT_DEFS = [
   {id:'bp_pistol',  icon:'🔫',name:'手枪图纸',  rarity:'common'},
   {id:'bp_shotgun', icon:'🔧',name:'霰弹图纸',  rarity:'rare'},
-  {id:'bp_rifle',   icon:'⚡', name:'步枪图纸',  rarity:'rare'},
+  {id:'bp_orbital', icon:'🌀', name:'卫星图纸',  rarity:'epic'},
   {id:'bp_grenade', icon:'💥',name:'榴弹图纸',  rarity:'epic'},
   {id:'bp_laser',   icon:'🔴',name:'激光图纸',  rarity:'epic'},
   {id:'bp_armor',   icon:'🛡️',name:'装甲图纸', rarity:'rare'},
@@ -812,24 +812,24 @@ const joystick={active:false,touchId:null,bx:0,by:0,dx:0,dy:0,magnitude:0,maxR:4
 
 const WEAPON_DEFS={
   pistol: {id:'pistol', name:'手枪',icon:'🔫',fireRate:1.2, bulletSpeed:380,damage:12,range:320,bulletColor:'#f9ca24',bulletR:4,spread:.06,count:1,desc:'快速单发'},
-  shotgun:{id:'shotgun',name:'霰弹',icon:'🔧',fireRate:.55, bulletSpeed:300,damage:18,range:220,bulletColor:'#e17055',bulletR:5,spread:0,   count:5, shotgunSpread:.36,desc:'扇射5发'},
-  rifle:  {id:'rifle',  name:'步枪',icon:'⚡', fireRate:3.5, bulletSpeed:520,damage:8, range:420,bulletColor:'#74b9ff',bulletR:3,spread:.03,count:1,pierce:3,desc:'穿透3敌'},
-  grenade:{id:'grenade',name:'榴弹',icon:'💥',fireRate:.4,  bulletSpeed:220,damage:50,range:220,bulletColor:'#fd79a8',bulletR:8,spread:.12,count:1,aoe:75,desc:'AOE爆炸'},
-  laser:  {id:'laser',  name:'激光',icon:'🔴',fireRate:.9,  bulletSpeed:640,damage:24,range:520,bulletColor:'#ff4757',bulletR:3,spread:.01,count:1,pierce:5,desc:'穿透5敌'},
-  dualgun:{id:'dualgun',name:'双持',icon:'🎯',fireRate:2.4, bulletSpeed:360,damage:10,range:300,bulletColor:'#ffeaa7',bulletR:4,spread:.09,count:2,desc:'双管齐发'},
+  shotgun:{id:'shotgun',name:'霰弹',icon:'🔧',fireRate:.55, bulletSpeed:300,damage:18,range:220,bulletColor:'#e17055',bulletR:5,spread:0,   count:5, shotgunSpread:.36,desc:'扇射，子弹越升越多越大'},
+  grenade:{id:'grenade',name:'榴弹',icon:'💥',fireRate:.4,  bulletSpeed:220,damage:50,range:220,bulletColor:'#fd79a8',bulletR:8,spread:.12,count:1,aoe:75,desc:'AOE爆炸，升级增加数量'},
+  laser:  {id:'laser',  name:'激光',icon:'🔴',fireRate:.9,  bulletSpeed:640,damage:24,range:520,bulletColor:'#ff4757',bulletR:3,spread:.01,count:1,pierce:5,desc:'穿透激光，升级变粗'},
   // 轨道弹：特殊武器，不发射子弹，而是在周围生成旋转卫星
-  orbital:{id:'orbital',name:'卫星炮',icon:'🌀',fireRate:0, bulletSpeed:0, damage:20,range:110,bulletColor:'#a29bfe',bulletR:8,spread:0,count:1,desc:'绕身旋转，接触爆炸',isOrbital:true},
+  orbital:{id:'orbital',name:'卫星炮',icon:'🌀',fireRate:0, bulletSpeed:0, damage:20,range:280,bulletColor:'#a29bfe',bulletR:8,spread:0,count:1,desc:'绕身旋转，升级增加卫星数',isOrbital:true},
 };
-function createWeapon(id){return{defId:id,level:1,cooldown:0,bonusDmg:0,bonusRate:0,bonusRange:0};}
+function createWeapon(id){return{defId:id,level:1,cooldown:0,bonusDmg:0,bonusRate:0,bonusRange:0,bonusR:0,bonusCount:0};}
 
 let bullets=[];
-function spawnBullet(x,y,angle,def,owner,wi){
+function spawnBullet(x,y,angle,def,owner,wi,overrideR){
   if(bullets.length>=MAX_BULLETS) return;
   const a=angle+rng(-def.spread/2,def.spread/2);
   const aoe=def.aoe||0, pierce=def.pierce||(aoe?999:1);
+  // 弹体半径：可被外部覆盖（用于霰弹/激光升级变大）
+  const r = overrideR !== undefined ? overrideR : def.bulletR + (wi?wi.bonusR||0:0);
   bullets.push({x,y,ox:x,oy:y,
     vx:Math.cos(a)*def.bulletSpeed, vy:Math.sin(a)*def.bulletSpeed,
-    r:def.bulletR, color:def.bulletColor,
+    r, color:def.bulletColor,
     damage:(def.damage+(wi?wi.bonusDmg:0))*(owner==='player'?player.dmgMult:1),
     range:def.range+(wi?wi.bonusRange:0),
     traveled:0, owner, aoe, pierce, hit:new Set(), trail:[],
@@ -888,43 +888,39 @@ function spawnShockwave(x,y,maxR,color){shockwaves.push({x,y,r:0,maxR,color,life
 // 每个轨道武器实例维护若干颗"卫星弹"，绕玩家旋转
 let orbitalSatellites=[];  // {angle, orbitR, angSpeed, r, color, damage, pierce, hitSet, flashTimer}
 
+// 卫星炮轨道半径：Lv1=280, Lv12=195，线性插值
+// range: 280 - (level-1) * (280-195)/11  = 280 - (level-1)*7.727
+const ORBITAL_R_LV1  = 280;
+const ORBITAL_R_LV12 = 195;
+function orbitalRadius(level){
+  const lv = clamp(level, 1, 12);
+  return ORBITAL_R_LV1 - (lv-1) * (ORBITAL_R_LV1-ORBITAL_R_LV12) / 11;
+}
+
 function syncOrbitalSatellites(){
-  // 统计当前应有几颗卫星
-  let totalCount=0;
-  let totalDmg=20, totalR=110;
-  player.weapons.forEach(w=>{
-    if(w.defId==='orbital'){
-      // 每级多1颗
-      totalCount += 2 + (w.level-1);
-      totalDmg   = (WEAPON_DEFS.orbital.damage + w.bonusDmg) * player.dmgMult;
-      totalR     = WEAPON_DEFS.orbital.range + w.bonusRange;
-    }
-  });
-  // 调整数组长度
-  while(orbitalSatellites.length < totalCount){
-    const idx = orbitalSatellites.length;
-    const angle = (TAU / totalCount) * idx; // 均匀分布
+  let wInst = player.weapons.find(w=>w.defId==='orbital');
+  if(!wInst){ orbitalSatellites=[]; return; }
+
+  // Lv1=2颗，每升一级+1颗，Lv12=13颗
+  const totalCount = 1 + wInst.level;
+  const totalR     = orbitalRadius(wInst.level);
+  const totalDmg   = (WEAPON_DEFS.orbital.damage + wInst.bonusDmg) * player.dmgMult;
+
+  // 保留当前第0颗卫星的旋转角度基准，其余均匀分布
+  const baseAngle = orbitalSatellites[0] ? orbitalSatellites[0].angle : 0;
+  orbitalSatellites = [];
+  for(let i=0; i<totalCount; i++){
+    // 每颗卫星在圆上均匀间隔，整体随 baseAngle 旋转
     orbitalSatellites.push({
-      angle,
-      orbitR: totalR,
-      angSpeed: 2.2,  // rad/s
-      r: 9,
-      color: '#a29bfe',
-      damage: totalDmg,
-      hitSet: new Set(),
-      flashTimer: 0,
+      angle:        baseAngle + (TAU / totalCount) * i,
+      orbitR:       totalR,
+      angSpeed:     2.0,
+      r:            9,
+      damage:       totalDmg,
+      flashTimer:   0,
+      hitCooldowns: {},
     });
   }
-  if(orbitalSatellites.length > totalCount){
-    orbitalSatellites.length = totalCount;
-  }
-  // 更新数值（级别变化后）
-  const n = orbitalSatellites.length;
-  orbitalSatellites.forEach((s,i)=>{
-    s.orbitR  = totalR;
-    s.damage  = totalDmg;
-    // 重新均匀间距（保持相对位置，只更新间距）
-  });
 }
 
 function updateOrbitalSatellites(delta){
@@ -1030,12 +1026,10 @@ function showWaveAnnounce(n,txt){
 }
 
 const UPGRADE_POOL=[
-  {id:'unlock_shotgun',name:'霰弹枪',icon:'🔧',rarity:'rare',  type:'weapon',weaponId:'shotgun',desc:'解锁/升级霰弹枪，扇射5发'},
-  {id:'unlock_rifle',  name:'突击步枪',icon:'⚡',rarity:'rare', type:'weapon',weaponId:'rifle',  desc:'解锁/升级步枪，穿透3敌'},
-  {id:'unlock_grenade',name:'榴弹枪',icon:'💥',rarity:'epic',  type:'weapon',weaponId:'grenade',desc:'解锁/升级榴弹，AOE爆炸'},
-  {id:'unlock_laser',  name:'激光枪',icon:'🔴',rarity:'epic',  type:'weapon',weaponId:'laser',  desc:'解锁/升级激光，穿透5敌'},
-  {id:'unlock_dualgun', name:'双持枪', icon:'🎯',rarity:'rare', type:'weapon',weaponId:'dualgun', desc:'解锁双持，双管齐发'},
-  {id:'unlock_orbital', name:'卫星炮', icon:'🌀',rarity:'epic', type:'weapon',weaponId:'orbital', desc:'解锁卫星炮，2颗弹丸绕身旋转'},
+  {id:'unlock_shotgun',name:'霰弹枪',icon:'🔧',rarity:'rare',  type:'weapon',weaponId:'shotgun',desc:'解锁/升级：子弹数量+1，弹体变大'},
+  {id:'unlock_grenade',name:'榴弹枪',icon:'💥',rarity:'epic',  type:'weapon',weaponId:'grenade',desc:'解锁/升级：发射数量+1'},
+  {id:'unlock_laser',  name:'激光枪',icon:'🔴',rarity:'epic',  type:'weapon',weaponId:'laser',  desc:'解锁/升级：光束变粗，伤害提升'},
+  {id:'unlock_orbital', name:'卫星炮', icon:'🌀',rarity:'epic', type:'weapon',weaponId:'orbital', desc:'解锁/升级：卫星数量+1'},
   {id:'pistol_up',     name:'手枪精通',icon:'🔫',rarity:'common',type:'weapon',weaponId:'pistol',desc:'手枪射速+伤害提升'},
   {id:'hp_up',    name:'生命强化',icon:'❤️', rarity:'common',type:'passive',apply(){player.maxHp+=30;player.hp=Math.min(player.maxHp,player.hp+30);},desc:'最大HP+30，立即回复30'},
   {id:'speed_up', name:'急速移动',icon:'👟', rarity:'common',type:'passive',apply(){player.speedMult*=1.15;},desc:'移动速度+15%'},
@@ -1049,7 +1043,7 @@ function pickUpgrades(n=3){
   const av=UPGRADE_POOL.filter(u=>{
     if(u.type==='weapon'){
       const ex=player.weapons.find(w=>w.defId===u.weaponId);
-      if(ex&&ex.level>=6) return false;
+      if(ex&&ex.level>=12) return false;
       if(!ex&&player.weapons.length>=6) return false;
     }
     return true;
@@ -1059,10 +1053,30 @@ function pickUpgrades(n=3){
 function applyUpgrade(upg){
   if(upg.type==='weapon'){
     const ex=player.weapons.find(w=>w.defId===upg.weaponId);
-    if(ex){ex.level++;ex.bonusDmg+=WEAPON_DEFS[upg.weaponId].damage*.22;ex.bonusRate+=.18;ex.bonusRange+=35;}
-    else player.weapons.push(createWeapon(upg.weaponId));
+    if(ex){
+      ex.level++;
+      const base=WEAPON_DEFS[upg.weaponId];
+      // 所有武器通用：+伤害、+射速、+射程（卫星炮轨道半径由等级独立控制，不用 bonusRange）
+      ex.bonusDmg  += base.damage * 0.22;
+      ex.bonusRate += 0.15;
+      if(upg.weaponId !== 'orbital') ex.bonusRange += 30;
+      // 武器专属升级
+      if(upg.weaponId==='laser'){
+        // 激光：每级弹体半径+1.5（光束变粗）
+        ex.bonusR = (ex.bonusR||0) + 1.5;
+      } else if(upg.weaponId==='grenade'){
+        // 榴弹：每级发射数+1
+        ex.bonusCount = (ex.bonusCount||0) + 1;
+      } else if(upg.weaponId==='shotgun'){
+        // 霰弹：每级子弹数+1，弹体半径+0.8
+        ex.bonusCount = (ex.bonusCount||0) + 1;
+        ex.bonusR     = (ex.bonusR||0) + 0.8;
+      }
+    } else {
+      player.weapons.push(createWeapon(upg.weaponId));
+    }
   } else if(upg.apply) upg.apply();
-  syncOrbitalSatellites(); // 同步卫星数量
+  syncOrbitalSatellites();
   updateWeaponUI();
 }
 
@@ -1210,10 +1224,24 @@ function updateWeapons(delta){
     if(!target) return;
     const angle=Math.atan2(target.y-player.y,target.x-player.x);
     const extra=player.extraShot||0;
+    const bonusCount=w.bonusCount||0;
+
     if(def.shotgunSpread){
-      const tc=def.count+extra, hs=def.shotgunSpread*(tc-1)/2;
-      for(let i=0;i<tc;i++) spawnBullet(player.x,player.y,angle-hs+def.shotgunSpread*i,def,'player',w);
+      // 霰弹：基础count + bonusCount + extraShot，弹体也随升级变大
+      const tc = def.count + bonusCount + extra;
+      const hs = def.shotgunSpread*(tc-1)/2;
+      const r  = def.bulletR + (w.bonusR||0);
+      for(let i=0;i<tc;i++) spawnBullet(player.x,player.y,angle-hs+def.shotgunSpread*i,def,'player',w,r);
+    } else if(def.id==='grenade'){
+      // 榴弹：每次发射 1+bonusCount 颗，分散角度
+      const tc = 1 + bonusCount + extra;
+      const spreadStep = tc>1 ? 0.28 : 0;
+      for(let i=0;i<tc;i++){
+        const a = angle + (i-(tc-1)/2)*spreadStep;
+        spawnBullet(player.x,player.y,a,def,'player',w);
+      }
     } else {
+      // 其他武器（手枪、激光）：bonusR 已在 spawnBullet 里自动应用
       for(let i=0;i<(def.count||1)+extra;i++) spawnBullet(player.x,player.y,angle,def,'player',w);
     }
   });

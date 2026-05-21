@@ -1260,8 +1260,8 @@ const WEAPON_DEFS={
   shotgun:{id:'shotgun',name:'霰弹',icon:'🔧',fireRate:.55, bulletSpeed:300,damage:18,range:220,bulletColor:'#e17055',bulletR:5,spread:0,   count:5, shotgunSpread:.36,desc:'扇射，子弹越升越多越大'},
   grenade:{id:'grenade',name:'榴弹',icon:'💥',fireRate:.4,  bulletSpeed:220,damage:50,range:220,bulletColor:'#fd79a8',bulletR:8,spread:.12,count:1,aoe:75,desc:'AOE爆炸，升级增加数量'},
   laser:  {id:'laser',  name:'激光',icon:'🔴',fireRate:.9,  bulletSpeed:640,damage:24,range:520,bulletColor:'#ff4757',bulletR:3,spread:.01,count:1,pierce:5,desc:'穿透激光，升级变粗'},
-  // 轨道弹：特殊武器，不发射子弹，而是在周围生成旋转卫星
-  orbital:{id:'orbital',name:'卫星炮',icon:'🌀',fireRate:0, bulletSpeed:0, damage:20,range:14, bulletColor:'#a29bfe',bulletR:2,spread:0,count:1,desc:'绕身旋转，升级增加卫星数',isOrbital:true},
+  // 电流光波：特殊武器，不发射子弹，在周围生成同心电流圆环
+  orbital:{id:'orbital',name:'电流光波',icon:'⚡',fireRate:0, bulletSpeed:0, damage:18,range:14, bulletColor:'#00d2ff',bulletR:2,spread:0,count:1,desc:'同心电流圆环，升级增加光波圈数',isOrbital:true},
 };
 function createWeapon(id){return{defId:id,level:1,cooldown:0,bonusDmg:0,bonusRate:0,bonusRange:0,bonusR:0,bonusCount:0};}
 
@@ -1425,72 +1425,70 @@ function updateBlueprintPickups(delta){
 let shockwaves=[];
 function spawnShockwave(x,y,maxR,color){shockwaves.push({x,y,r:0,maxR,color,life:.45,maxLife:.45});}
 
-// ── 轨道卫星系统 ──
-// 每个轨道武器实例维护若干颗"卫星弹"，绕玩家旋转
-let orbitalSatellites=[];  // {angle, orbitR, angSpeed, r, color, damage, pierce, hitSet, flashTimer}
+// ── 电流光波系统 ──
+// 每圈光波是固定半径的同心圆环，Lv1=1圈，每升级+1圈
+// 圆环内的敌人持续受到电流伤害
+let orbitalSatellites=[];  // 复用变量名保持兼容，实际存储电流圆环数据
 
-// 卫星炮轨道半径：Lv1=280, Lv12=195，线性插值
-// range: 280 - (level-1) * (280-195)/11  = 280 - (level-1)*7.727
-const ORBITAL_R_LV1  = 28;   // Lv1轨道半径28，直径56=角色直径4倍
-const ORBITAL_R_LV12 = 195;  // Lv12达到屏幕横向1/2
-function orbitalRadius(level){
-  const lv = clamp(level, 1, 12);
-  return ORBITAL_R_LV1 + (lv-1) * (ORBITAL_R_LV12 - ORBITAL_R_LV1) / 11;
-}
+// 每圈光波的固定半径：第1圈=55，每圈+45
+const SHOCKRING_BASE_R = 55;
+const SHOCKRING_STEP_R = 45;
+function shockRingRadius(ringIndex){ return SHOCKRING_BASE_R + ringIndex * SHOCKRING_STEP_R; }
+
+// 电流光波全局动画计时器
+let shockRingTime = 0;
 
 function syncOrbitalSatellites(){
   let wInst = player.weapons.find(w=>w.defId==='orbital');
   if(!wInst){ orbitalSatellites=[]; return; }
 
-  // Lv1=2颗，每升一级+1颗，Lv12=13颗
-  const totalCount = 1 + wInst.level;
-  const totalR     = orbitalRadius(wInst.level);
-  const totalDmg   = (WEAPON_DEFS.orbital.damage + wInst.bonusDmg) * player.dmgMult;
+  // Lv1=1圈，每升级+1圈
+  const ringCount = wInst.level;
+  const totalDmg  = (WEAPON_DEFS.orbital.damage + wInst.bonusDmg) * player.dmgMult;
 
-  // 保留当前第0颗卫星的旋转角度基准，其余均匀分布
-  const baseAngle = orbitalSatellites[0] ? orbitalSatellites[0].angle : 0;
-  orbitalSatellites = [];
-  for(let i=0; i<totalCount; i++){
-    // 每颗卫星在圆上均匀间隔，整体随 baseAngle 旋转
-    orbitalSatellites.push({
-      angle:        baseAngle + (TAU / totalCount) * i,
-      orbitR:       totalR,
-      angSpeed:     2.0,
-      r:            2 + (wInst.level * 0.5), // Lv1=2.5, Lv6=5, Lv12=8
-      damage:       totalDmg,
-      flashTimer:   0,
-      hitCooldowns: {},
-    });
+  // 同步圈数（保留已有圆环的冷却状态）
+  while(orbitalSatellites.length < ringCount){
+    orbitalSatellites.push({ hitCooldowns:{}, flashTimer:0 });
   }
+  orbitalSatellites.length = ringCount;
+
+  // 更新伤害
+  orbitalSatellites.forEach((ring,i)=>{
+    ring.r      = shockRingRadius(i);
+    ring.damage = totalDmg;
+    ring.width  = 10 + i*2; // 外圈略粗
+  });
 }
 
 function updateOrbitalSatellites(delta){
   if(orbitalSatellites.length===0) return;
-  const n=orbitalSatellites.length;
-  orbitalSatellites.forEach((s,i)=>{
-    // 旋转
-    s.angle += s.angSpeed * delta;
-    const sx = player.x + Math.cos(s.angle) * s.orbitR;
-    const sy = player.y + Math.sin(s.angle) * s.orbitR;
-    s.x = sx; s.y = sy;
-    if(s.flashTimer>0) s.flashTimer-=delta;
-    // 每帧重置命中集合（轨道弹可以连续伤害，但有冷却）
-    // 用 hitCooldown 而非一次性 Set
-    if(!s.hitCooldowns) s.hitCooldowns={};
-    // 计时减少
-    for(const uid in s.hitCooldowns){
-      s.hitCooldowns[uid]-=delta;
-      if(s.hitCooldowns[uid]<=0) delete s.hitCooldowns[uid];
+  shockRingTime += delta;
+
+  orbitalSatellites.forEach((ring,ri)=>{
+    if(ring.flashTimer>0) ring.flashTimer-=delta;
+    if(!ring.hitCooldowns) ring.hitCooldowns={};
+    // 冷却计时
+    for(const uid in ring.hitCooldowns){
+      ring.hitCooldowns[uid]-=delta;
+      if(ring.hitCooldowns[uid]<=0) delete ring.hitCooldowns[uid];
     }
-    // 碰撞检测
+    // 碰撞：检测敌人是否在圆环厚度内 (r ± width/2)
+    const inner = ring.r - ring.width * 0.5 - 6;
+    const outer = ring.r + ring.width * 0.5 + 6;
     for(let j=0;j<enemies.length;j++){
       const e=enemies[j];
-      if(s.hitCooldowns[e.uid]) continue; // 冷却中
-      if(dist({x:sx,y:sy},e) < s.r + e.r){
-        dealDmg(e, s.damage);
-        s.hitCooldowns[e.uid] = 0.55; // 每0.55s可再次伤害同一敌人
-        s.flashTimer = 0.1;
-        spawnParticles(sx,sy,'#a29bfe',5,80,.3);
+      if(ring.hitCooldowns[e.uid]) continue;
+      const d=dist(player, e);
+      if(d >= inner - e.r && d <= outer + e.r){
+        dealDmg(e, ring.damage);
+        ring.hitCooldowns[e.uid] = 0.45;
+        ring.flashTimer = 0.12;
+        // 电弧粒子
+        const ang = Math.atan2(e.y-player.y, e.x-player.x);
+        const ex  = player.x + Math.cos(ang)*ring.r;
+        const ey  = player.y + Math.sin(ang)*ring.r;
+        spawnParticles(ex, ey, '#00d2ff', 6, 90, .28);
+        spawnParticles(ex, ey, '#ffffff', 3, 60, .15);
       }
     }
   });
@@ -1518,7 +1516,7 @@ function spawnDmgText(wx,wy,text,color){
 let wave=1, waveTimer=0, spawnTimer=0;
 // 每波持续时间：前期长，后期缩短
 function getWaveDuration(){ return Math.max(16, 30 - Math.floor((wave-1)/10)*2); }
-function getSpawnInterval(){ return Math.max(.12, 1.3 - wave*.06); }
+function getSpawnInterval(){ return Math.max(.10, 0.7 - wave*.04); }
 
 function getWavePool(){
   const p=['grunt','grunt','grunt','fast'];
@@ -1579,7 +1577,7 @@ const UPGRADE_POOL=[
   {id:'unlock_shotgun',name:'霰弹枪',icon:'🔧',rarity:'rare',  type:'weapon',weaponId:'shotgun',desc:'解锁/升级：子弹数量+1，弹体变大'},
   {id:'unlock_grenade',name:'榴弹枪',icon:'💥',rarity:'epic',  type:'weapon',weaponId:'grenade',desc:'解锁/升级：发射数量+1'},
   {id:'unlock_laser',  name:'激光枪',icon:'🔴',rarity:'epic',  type:'weapon',weaponId:'laser',  desc:'解锁/升级：光束变粗，伤害提升'},
-  {id:'unlock_orbital', name:'卫星炮', icon:'🌀',rarity:'epic', type:'weapon',weaponId:'orbital', desc:'解锁/升级：卫星数量+1'},
+  {id:'unlock_orbital', name:'电流光波', icon:'⚡',rarity:'epic', type:'weapon',weaponId:'orbital', desc:'解锁/升级：电流光波圈数+1'},
   {id:'pistol_up',     name:'手枪精通',icon:'🔫',rarity:'common',type:'weapon',weaponId:'pistol',desc:'手枪射速+伤害提升'},
   {id:'hp_up',    name:'生命强化',icon:'❤️', rarity:'common',type:'passive',apply(){player.maxHp+=30;player.hp=Math.min(player.maxHp,player.hp+30);},desc:'最大HP+30，立即回复30'},
   {id:'speed_up', name:'急速移动',icon:'👟', rarity:'common',type:'passive',apply(){player.speedMult*=1.15;},desc:'移动速度+15%'},
@@ -2300,32 +2298,56 @@ function render(){
       ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,TAU);ctx.fillStyle=b.color;ctx.fill();
     }
   });
-  // orbital satellites
-  orbitalSatellites.forEach(s=>{
-    if(!s.x) return;
-    // 轨道虚线
+  // 电流光波渲染
+  orbitalSatellites.forEach((ring,ri)=>{
+    const t   = shockRingTime;
+    const px  = player.x, py = player.y;
+    const R   = ring.r;
+    const flashing = ring.flashTimer > 0;
+
+    // ── 底层柔光圆环 ──
+    const pulse = 0.7 + Math.sin(t*4 + ri*1.2)*0.3;
+    ctx.beginPath(); ctx.arc(px,py,R,0,TAU);
+    ctx.strokeStyle = flashing ? `rgba(255,255,255,${0.55*pulse})` : `rgba(0,210,255,${0.22*pulse})`;
+    ctx.lineWidth   = ring.width * 1.8;
+    ctx.stroke();
+
+    // ── 主圆环（亮边）──
+    ctx.beginPath(); ctx.arc(px,py,R,0,TAU);
+    ctx.strokeStyle = flashing ? '#ffffff' : `rgba(0,210,255,${0.75+0.25*pulse})`;
+    ctx.lineWidth   = ring.width * 0.55;
+    ctx.stroke();
+
+    // ── 内侧高光 ──
+    ctx.beginPath(); ctx.arc(px,py,R,0,TAU);
+    ctx.strokeStyle = `rgba(180,240,255,${0.4*pulse})`;
+    ctx.lineWidth   = ring.width * 0.18;
+    ctx.stroke();
+
+    // ── 电弧锯齿（沿圆弧随机折线段）──
+    const arcSegs = 12 + ri*4;
+    const noise   = flashing ? 14 : 6;
     ctx.beginPath();
-    ctx.arc(player.x, player.y, s.orbitR, 0, TAU);
-    ctx.strokeStyle='rgba(162,155,254,0.08)'; ctx.lineWidth=1; ctx.setLineDash([4,8]); ctx.stroke();
-    ctx.setLineDash([]);
-    // 光晕
-    const gl=ctx.createRadialGradient(s.x,s.y,0, s.x,s.y,s.r*2.5);
-    gl.addColorStop(0,'#a29bfe66'); gl.addColorStop(1,'transparent');
-    ctx.beginPath(); ctx.arc(s.x,s.y,s.r*2.5,0,TAU); ctx.fillStyle=gl; ctx.fill();
-    // 卫星主体
-    ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,TAU);
-    if(s.flashTimer>0){
-      ctx.fillStyle='#fff';
-    } else {
-      const sg=ctx.createRadialGradient(s.x-s.r*.3,s.y-s.r*.3,0, s.x,s.y,s.r);
-      sg.addColorStop(0,'#d6d0ff'); sg.addColorStop(1,'#6c5ce7');
-      ctx.fillStyle=sg;
+    for(let i=0;i<=arcSegs;i++){
+      const a   = (TAU/arcSegs)*i;
+      const jit = (i===0||i===arcSegs) ? 0 : (Math.sin(t*9+i*2.7+ri*3.1)*noise);
+      const rr  = R + jit;
+      const x   = px + Math.cos(a)*rr;
+      const y   = py + Math.sin(a)*rr;
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
     }
-    ctx.fill();
-    ctx.strokeStyle='#fff4'; ctx.lineWidth=1.5; ctx.stroke();
-    // 内核
-    ctx.beginPath(); ctx.arc(s.x,s.y,s.r*.35,0,TAU);
-    ctx.fillStyle='#fff'; ctx.fill();
+    ctx.closePath();
+    ctx.strokeStyle = flashing ? 'rgba(255,255,255,0.9)' : `rgba(120,230,255,${0.55+Math.sin(t*7+ri)*0.3})`;
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+
+    // ── 闪烁时额外外层白圈 ──
+    if(flashing){
+      ctx.beginPath(); ctx.arc(px,py,R,0,TAU);
+      ctx.strokeStyle='rgba(255,255,255,0.6)';
+      ctx.lineWidth=ring.width*2.2;
+      ctx.stroke();
+    }
   });
 
   // enemies
@@ -2427,9 +2449,10 @@ function startGame(){
   document.getElementById('resultsScreen').style.display='none';
   document.getElementById('levelupScreen').style.display='none';
   gameTime=0;dt=0;lastTs=0; killCount=0;totalDmgDealt=0;runFragments=0;runBlueprints=[];
-  wave=1;waveTimer=0;spawnTimer=1; bossesDefeated=0;
+  wave=1;waveTimer=0;spawnTimer=0.1; bossesDefeated=0;
   bullets=[];enemies=[];gems=[];particles=[];shockwaves=[];fragPickups=[];orbitalSatellites=[];bossDropItems=[];blueprintPickups=[];equipDrops=[];runEquips=[];
   arena.active=false; arena.r=0; arena.bossUid=-1;
+  shockRingTime=0;
   levelUpQueue=0;levelUpActive=false;_uid=0; gState='play';
   releaseJoystick();
 
@@ -2701,7 +2724,7 @@ const Audio = (() => {
       }
       else if(weapId==='grenade') { playOsc(120, 'sawtooth', t, 0.15, 0.3); playNoise(t, 0.08, 0.2, 300); }
       else if(weapId==='laser')   { playOsc(2400,'sine',  t, 0.08, 0.15); playOsc(1800,'sine',t+0.02,0.05,0.1); }
-      else if(weapId==='orbital') { playOsc(660, 'triangle', t, 0.05, 0.12); }
+      else if(weapId==='orbital') { playOsc(1400,'sawtooth',t,0.04,0.08); playNoise(t,0.03,0.12,6000); }
       else { playOsc(660, 'square', t, 0.05, 0.15); }
     },
 

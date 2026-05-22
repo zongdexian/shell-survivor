@@ -48,35 +48,36 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 .screen.active{display:flex;}
 
 /* ===== LOBBY ===== */
-#lobbyScreen{background:radial-gradient(ellipse at 50% 25%,#1a1a3e 0%,#0a0a0f 65%);}
+#lobbyScreen{background:#0a0a0f;display:flex;flex-direction:column;}
 
 /* Top status bar */
 #statusBar{
+  position:absolute;top:0;left:0;right:0;
   display:flex;align-items:center;justify-content:space-between;
-  padding:12px 16px 10px;
-  background:rgba(0,0,0,.6);
-  border-bottom:1px solid #1a1a2e;
+  padding:max(44px,calc(env(safe-area-inset-top)+10px)) 14px 10px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.75) 60%,transparent);
+  z-index:10;pointer-events:none;
   flex-shrink:0;
 }
-#statusBar h1{color:#f9ca24;font-size:18px;letter-spacing:3px;text-shadow:0 0 12px #f9ca2455;}
-.res-chips{display:flex;gap:8px;}
+#statusBar h1{color:#fff;font-size:17px;font-weight:bold;letter-spacing:2px;pointer-events:none;}
+.res-chips{display:flex;gap:6px;pointer-events:none;}
 .res-chip{
-  display:flex;align-items:center;gap:4px;
-  background:#1a1a2e;border:1px solid #333;border-radius:20px;
-  padding:4px 10px;font-size:11px;
+  display:flex;align-items:center;gap:3px;
+  background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);border-radius:20px;
+  padding:3px 9px;font-size:11px;font-weight:bold;color:#f9ca24;
 }
-.res-chip-val{color:#f9ca24;font-weight:bold;}
 
 /* Tab content area */
-#lobbyContent{flex:1;overflow-y:auto;padding:16px 14px 8px;-webkit-overflow-scrolling:touch;}
-.tab-page{display:none;}
-.tab-page.active{display:block;}
+#lobbyContent{flex:1;overflow:hidden;position:relative;}
+.tab-page{display:none;position:absolute;inset:0;}
+.tab-page.active{display:flex;flex-direction:column;}
 
 /* Bottom nav */
 #bottomNav{
   display:flex;align-items:stretch;
-  background:#0d0d1a;border-top:1px solid #1a1a2e;
+  background:rgba(10,10,15,.96);border-top:1px solid rgba(255,255,255,.08);
   flex-shrink:0;padding-bottom:env(safe-area-inset-bottom,0);
+  z-index:10;
 }
 .nav-btn{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -91,44 +92,116 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 /* Section title */
 .sec-title{font-size:13px;font-weight:bold;color:#f9ca24;border-left:3px solid #f9ca24;padding-left:8px;margin:0 0 12px;}
 
-/* ── 出击 Tab ── */
-.mission-banner{
-  background:linear-gradient(135deg,#1a1a3e,#0d1a2e);
-  border:1px solid #2a2a4e;border-radius:14px;
-  padding:16px;margin-bottom:14px;text-align:center;
+/* ══════════════════════════════════════════
+   出击 Tab — 参考截图重做
+   全屏大地图背景 + 底部角色信息卡片 + 出击按钮
+   ══════════════════════════════════════════ */
+#tab-mission{
+  background:#0a0a0f;
+  overflow:hidden;
 }
-.mission-banner h2{font-size:20px;margin-bottom:4px;}
-.mission-banner p{color:#888;font-size:12px;line-height:1.6;}
 
-.mission-list{display:flex;flex-direction:column;gap:10px;}
-.mission-card{
-  background:linear-gradient(135deg,#16213e,#1a1a2e);
-  border:1px solid #333;border-radius:14px;
-  padding:14px 16px;display:flex;align-items:center;gap:14px;
-  position:relative;overflow:hidden;
-  active-opacity:.8;
+/* 地图大背景区 */
+.mission-map-bg{
+  flex:1;
+  position:relative;
+  overflow:hidden;
+  min-height:0;
+  cursor:pointer;
 }
-.mission-card:active{opacity:.8;}
-.mission-card.locked{opacity:.45;}
-.mc-icon-big{font-size:40px;flex-shrink:0;}
-.mc-info{flex:1;}
-.mc-name{font-size:15px;font-weight:bold;margin-bottom:3px;}
-.mc-time{color:#74b9ff;font-size:11px;margin-bottom:4px;}
-.mc-reward{color:#55efc4;font-size:10px;}
-.mc-req-badge{
-  position:absolute;top:10px;right:10px;
-  background:#e17055;color:#fff;font-size:9px;
-  border-radius:10px;padding:2px 7px;font-weight:bold;
+/* 地图背景（用渐变+图案模拟） */
+.mission-map-canvas{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
 }
+/* 关卡名徽章 — 叠在地图中央偏上 */
+.mission-map-badge{
+  position:absolute;top:16px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.7);border:1.5px solid rgba(255,255,255,.2);
+  border-radius:20px;padding:5px 18px;
+  font-size:14px;font-weight:bold;color:#fff;white-space:nowrap;
+  z-index:2;
+}
+/* 选择关卡箭头 */
+.mission-map-arrows{
+  position:absolute;top:50%;transform:translateY(-50%);
+  width:100%;display:flex;justify-content:space-between;
+  padding:0 12px;pointer-events:none;z-index:2;
+}
+.map-arrow{
+  width:36px;height:36px;border-radius:50%;
+  background:rgba(0,0,0,.5);border:1.5px solid rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;color:#fff;pointer-events:all;cursor:pointer;
+  flex-shrink:0;
+}
+.map-arrow:active{background:rgba(255,255,255,.15);}
+/* 关卡指示点 */
+.mission-dots{
+  position:absolute;bottom:14px;left:0;right:0;
+  display:flex;justify-content:center;gap:6px;z-index:2;
+}
+.mission-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:rgba(255,255,255,.3);transition:all .2s;
+}
+.mission-dot.active{
+  width:18px;border-radius:3px;
+  background:#f9ca24;
+}
+/* 锁定遮罩 */
+.mission-lock-mask{
+  position:absolute;inset:0;
+  background:rgba(0,0,0,.55);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:8px;z-index:3;
+}
+.mission-lock-mask.hidden{display:none;}
+.mission-lock-icon{font-size:40px;}
+.mission-lock-text{color:#fff;font-size:13px;font-weight:bold;}
+.mission-lock-req{color:#f9ca24;font-size:11px;}
+
+/* 底部信息卡片 */
+.mission-info-card{
+  flex-shrink:0;
+  background:#111;
+  border-top:1px solid rgba(255,255,255,.08);
+  padding:16px 16px 10px;
+}
+.mic-top{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.mic-icon{font-size:36px;flex-shrink:0;}
+.mic-text{flex:1;}
+.mic-name{font-size:16px;font-weight:bold;color:#fff;margin-bottom:3px;}
+.mic-tags{display:flex;gap:6px;flex-wrap:wrap;}
+.mic-tag{
+  font-size:10px;padding:2px 8px;border-radius:10px;
+  background:rgba(255,255,255,.08);color:#aaa;
+}
+.mic-tag.diff-normal{background:rgba(46,204,113,.15);color:#2ecc71;}
+.mic-tag.diff-hard  {background:rgba(241,196,15,.15);color:#f1c40f;}
+.mic-tag.diff-boss  {background:rgba(231,76,60,.15);color:#e74c3c;}
+.mic-rewards{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.mic-reward-chip{
+  font-size:10px;color:#bbb;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  border-radius:12px;padding:3px 10px;
+  display:flex;align-items:center;gap:4px;
+}
+
+/* 出击大按钮 */
 .btn-go{
-  display:block;width:100%;margin-top:16px;
-  padding:16px;background:linear-gradient(135deg,#f9ca24,#f0932b);
-  color:#111;font-size:17px;font-weight:bold;
-  border:none;border-radius:14px;letter-spacing:2px;
-  box-shadow:0 4px 20px #f9ca2444;
-  active-opacity:.85;
+  display:block;width:100%;
+  padding:16px;
+  background:linear-gradient(135deg,#f9ca24,#f0932b);
+  color:#111;font-size:18px;font-weight:bold;
+  border:none;border-radius:14px;letter-spacing:3px;
+  box-shadow:0 4px 20px rgba(249,202,36,.35);
 }
 .btn-go:active{transform:scale(.97);}
+.btn-go.locked{
+  background:linear-gradient(135deg,#444,#333);
+  color:#666;box-shadow:none;
+}
 
 /* ── 特工 Tab ── */
 .agent-hero{
@@ -309,69 +382,90 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 /* Game UI overlay */
 #gameUI{position:absolute;inset:0;pointer-events:none;}
 
-/* HUD top */
+/* =====================================================
+   战斗界面 HUD — 参考《弹壳特攻队》
+   - 计时器：顶部正中，大字
+   - 等级：左上角小徽章
+   - 资源（碎片/图纸）：右上角
+   - 暂停按钮：右上角最右
+   - 经验条：顶部横条（紧接安全区下方）
+   - 血条：在角色脚下由 Canvas 绘制
+   ===================================================== */
+
+/* 顶部整体容器 */
 #hudTop{
   position:absolute;top:0;left:0;right:0;
-  padding:max(44px, calc(env(safe-area-inset-top) + 12px)) 14px 8px;
-  background:linear-gradient(to bottom,rgba(0,0,0,.85) 60%,transparent);
-  display:flex;align-items:flex-start;gap:10px;
+  padding-top:max(46px, calc(env(safe-area-inset-top) + 10px));
+  padding-bottom:6px;
+  padding-left:12px;
+  padding-right:50px; /* 留给暂停按钮 */
+  display:flex;align-items:center;
+  pointer-events:none;z-index:3;
+}
+/* 左：等级 */
+#hudLeft{ flex-shrink:0; }
+#lvBadge{
+  background:rgba(0,0,0,.6);
+  border:1px solid rgba(249,202,36,.45);
+  border-radius:20px;
+  padding:4px 11px;
+  font-size:12px;font-weight:bold;color:#f9ca24;
+  white-space:nowrap;
+}
+/* 中：计时器，绝对居中 */
+#hudCenter{
+  position:absolute;left:0;right:0;
+  display:flex;justify-content:center;
   pointer-events:none;
-  z-index:2;
 }
-.hud-bars{flex:1;display:flex;flex-direction:column;gap:5px;}
-.bar-row{display:flex;align-items:center;gap:6px;}
-.bar-ico{font-size:11px;width:14px;text-align:center;}
-.bar-bg{flex:1;height:8px;background:#1a1a1a;border-radius:4px;overflow:hidden;border:1px solid #333;}
-#hpBar{background:linear-gradient(90deg,#e74c3c,#c0392b);height:100%;border-radius:4px;transition:width .12s;}
-#xpBar{background:linear-gradient(90deg,#f39c12,#e67e22);height:100%;border-radius:4px;transition:width .25s;}
-.bar-txt{font-size:9px;color:#ccc;white-space:nowrap;min-width:32px;text-align:right;}
-.hud-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
-#timerBadge{
-  background:rgba(0,0,0,.6);border:1px solid #7ed6df44;
-  border-radius:8px;padding:4px 10px;text-align:center;
+#timerBadge{ text-align:center; }
+#timerVal{
+  color:#fff;
+  font-size:28px;font-weight:bold;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:2px;line-height:1;
+  text-shadow:0 2px 12px rgba(0,0,0,.8), 0 0 20px rgba(255,255,255,.15);
 }
-#timerVal{color:#7ed6df;font-size:18px;font-weight:bold;font-variant-numeric:tabular-nums;text-shadow:0 0 8px #7ed6df88;line-height:1;}
-#timerLbl{color:#7ed6df99;font-size:8px;margin-top:1px;}
-.hud-badges{display:flex;gap:5px;}
-.hud-badge{
-  background:rgba(0,0,0,.6);border:1px solid #333;
-  border-radius:6px;padding:3px 8px;font-size:10px;font-weight:bold;
-  display:flex;align-items:center;gap:3px;
-}
+#timerLbl{ display:none; }
 
-/* Run resources top-right */
-#runResBar{
-  position:absolute;
-  top:max(100px, calc(env(safe-area-inset-top) + 58px));
-  left:0;right:0;
-  display:flex;justify-content:center;gap:8px;
-  pointer-events:none;
+/* 右：资源 */
+#hudRight{
+  margin-left:auto;
+  display:flex;align-items:center;gap:6px;flex-shrink:0;
 }
 .rr-chip{
-  background:rgba(0,0,0,.55);border:1px solid #333;
-  border-radius:20px;padding:3px 10px;font-size:10px;
-  display:flex;align-items:center;gap:4px;
+  background:rgba(0,0,0,.58);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:14px;padding:3px 9px 3px 6px;
+  font-size:11px;font-weight:bold;
+  display:flex;align-items:center;gap:3px;color:#f9ca24;
 }
+.rr-chip-icon{font-size:12px;line-height:1;}
+#runResBar{display:none;}
 
-/* Weapon bar */
-#weaponBar{
-  position:absolute;
-  bottom:calc(env(safe-area-inset-bottom, 0px) + 14px);
-  left:0;right:0;
-  display:flex;justify-content:center;gap:6px;
-  padding:0 14px;
-  pointer-events:none;
-  z-index:2;
+/* 经验条 — 顶部细条，紧接顶栏下方 */
+#hudBars{
+  position:absolute;left:0;right:0;
+  top:max(82px, calc(env(safe-area-inset-top) + 46px));
+  pointer-events:none;z-index:3;
 }
-.weapon-slot{
-  width:50px;height:54px;background:rgba(10,10,20,.8);
-  border:1px solid #555;border-radius:8px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  font-size:18px;position:relative;
+.bar-full-row{
+  width:100%;height:4px;
+  background:rgba(0,0,0,.4);
+  overflow:hidden;
 }
-.weapon-slot.active{border-color:#f9ca24;box-shadow:0 0 8px #f9ca2433;}
-.weapon-slot span{font-size:8px;color:#ccc;margin-top:1px;}
-.weapon-lvl{position:absolute;top:2px;right:3px;font-size:8px;color:#f9ca24;font-weight:bold;}
+#xpBar{
+  height:100%;
+  background:linear-gradient(90deg,#d4a017,#f9ca24,#ffe66d);
+  transition:width .25s;
+}
+/* 血条和血量文字由 Canvas 绘制，DOM 保留供 JS 读写但不显示 */
+#hpBar{ display:none; }
+#hpLabel{ display:none; }
+
+/* 武器栏 — 隐藏 */
+#weaponBar{display:none;}
+.weapon-slot,.weapon-slot.active,.weapon-slot span,.weapon-lvl{}
 
 /* Virtual joystick area — 全屏底层，永远在最下面接收触摸 */
 #joystickArea{
@@ -443,61 +537,142 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 .g-btn:active{transform:scale(.97);}
 .g-btn.secondary{background:linear-gradient(135deg,#636e72,#b2bec3);color:#111;box-shadow:none;}
 
-/* Level-up (scrollable cards) */
-#levelupScreen{display:none;}
+/* =====================================================
+   技能选择界面 — 参考《弹壳特攻队》技能选择界面截图
+   全屏半透明遮罩 + 顶部标题条 + 竖排大卡片
+   ===================================================== */
+
+/* =====================================================
+   技能选择界面 — 严格参考截图
+   结构：
+   ① 顶部标题区（深色背景，白色文字，黑线分隔）
+   ② 经验进度条（亮金黄色全宽横条，约10pt高）
+   ③ 卡片列表（深蓝灰色背景，无左右内边距，分隔线分隔）
+      每张卡片：左=大图标圆形背景，中=名称+描述，右=选择按钮
+   ===================================================== */
+#levelupScreen{
+  display:none;
+  position:absolute;inset:0;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:flex-start;
+  background:#1a1d26; /* 深蓝灰背景，接近截图 */
+  pointer-events:all;
+  z-index:30;
+  overflow:hidden;
+}
+
+/* 顶部标题区 */
+.lu-hdr{
+  background:#1a1d26;
+  padding:max(48px, calc(env(safe-area-inset-top) + 14px)) 16px 10px;
+  text-align:center;
+  flex-shrink:0;
+  border-bottom:1px solid #000;
+}
+.lu-hdr h3{
+  color:#fff;font-size:17px;font-weight:bold;
+  margin:0;letter-spacing:.5px;
+}
+.lu-hdr p{color:#888;font-size:11px;margin-top:3px;}
+.lu-queue{color:#74b9ff;font-size:10px;margin-top:4px;}
+
+/* 金黄色经验进度条 */
+.lu-xp-bar-wrap{
+  width:100%;height:10px;
+  background:#111;
+  flex-shrink:0;
+}
+.lu-xp-bar-fill{
+  height:100%;
+  background:linear-gradient(90deg,#d4a017,#f9ca24,#ffe066);
+  transition:width .4s;
+}
+
+/* 卡片列表区 */
 .lu-cards-scroll{
-  width:100%;max-width:360px;
-  display:flex;flex-direction:column;gap:10px;
-  overflow-y:auto;max-height:460px;
-  padding:2px 4px;-webkit-overflow-scrolling:touch;
+  flex:1;
+  display:flex;flex-direction:column;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  background:#1a1d26;
 }
+
+/* 单张卡片 — 全屏宽，用分隔线隔开 */
 .card{
-  background:linear-gradient(135deg,#1a1a2e,#16213e);
-  border:2px solid #333;border-radius:12px;
-  padding:14px 16px;cursor:pointer;
+  width:100%;
+  background:#22263a;
+  border:none;
+  border-bottom:1px solid #000;
+  border-radius:0;
+  padding:14px 16px;
+  cursor:pointer;
   display:flex;align-items:center;gap:14px;
-  transition:border-color .15s,transform .1s;
-  pointer-events:all;flex-shrink:0;
+  transition:background .1s;
+  pointer-events:all;
+  flex-shrink:0;
+  position:relative;
 }
-.card:active{border-color:#f9ca24;transform:scale(.98);}
-.card-icon{font-size:32px;flex-shrink:0;}
-.card-body{flex:1;}
-.card-name{font-size:13px;font-weight:bold;margin-bottom:4px;}
-.card-desc{font-size:10px;color:#888;line-height:1.5;}
-.card-rarity{font-size:9px;font-weight:bold;letter-spacing:1px;margin-top:4px;}
+.card:active{ background:#2a2f45; }
+.card:last-child{ border-bottom:none; }
 
-/* Results */
-.stats-2col{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;margin-bottom:14px;width:100%;max-width:320px;}
-.stat-item{color:#ccc;font-size:12px;}
-.stat-item span{color:#f9ca24;font-weight:bold;}
-.loot-scroll{
-  display:flex;flex-wrap:wrap;gap:6px;justify-content:center;
-  max-width:340px;margin-bottom:14px;max-height:100px;overflow-y:auto;
+/* 左侧：图标（圆形背景） */
+.card-icon{
+  flex-shrink:0;
+  width:56px;height:56px;
+  border-radius:14px;
+  background:#2e3350;
+  display:flex;align-items:center;justify-content:center;
+  font-size:32px;
+  box-shadow:0 2px 8px rgba(0,0,0,.4);
 }
-.loot-chip{
-  display:flex;align-items:center;gap:4px;padding:5px 10px;
-  background:#1a1a2e;border:1px solid #333;border-radius:20px;font-size:10px;
-}
-.loot-chip.new{border-color:#f9ca24;color:#f9ca24;}
+/* 稀有度图标背景色 */
+.card.rarity-rare   .card-icon{ background:#1a2a45;box-shadow:0 0 12px rgba(52,152,219,.3); }
+.card.rarity-epic   .card-icon{ background:#251a35;box-shadow:0 0 12px rgba(155,89,182,.35); }
+.card.rarity-legend .card-icon{ background:#302010;box-shadow:0 0 14px rgba(249,202,36,.4); }
 
-/* lu title */
-.lu-hdr{margin-bottom:10px;text-align:center;}
-.lu-hdr h3{color:#f9ca24;font-size:18px;font-weight:bold;}
-.lu-hdr p{color:#aaa;font-size:11px;margin-top:3px;}
-.lu-queue{color:#74b9ff;font-size:10px;margin-bottom:6px;}
+/* 中：文字区 */
+.card-body{flex:1;min-width:0;}
+.card-name{
+  font-size:15px;font-weight:bold;
+  color:#fff;margin-bottom:5px;
+}
+.card-desc{font-size:11px;color:#8a8fa8;line-height:1.6;}
+.card-rarity{
+  display:inline-block;
+  font-size:9px;font-weight:bold;letter-spacing:1px;
+  margin-top:6px;padding:2px 8px;border-radius:10px;
+  background:rgba(255,255,255,.07);
+}
+
+/* 右侧：选择按钮 */
+.card-btn{
+  flex-shrink:0;
+  width:36px;height:36px;
+  border-radius:50%;
+  background:rgba(255,255,255,.08);
+  border:1.5px solid rgba(255,255,255,.2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;color:rgba(255,255,255,.5);
+}
+.card.rarity-rare   .card-btn{ border-color:#3498db55;color:#3498db; }
+.card.rarity-epic   .card-btn{ border-color:#9b59b655;color:#9b59b6; }
+.card.rarity-legend .card-btn{ border-color:#f9ca2455;color:#f9ca24; }
 
 /* Pause button */
 #pauseBtn{
   position:absolute;
-  top:max(46px, calc(env(safe-area-inset-top) + 14px));
-  right:14px;
-  width:44px;height:44px;
-  background:rgba(0,0,0,.65);border:1px solid #555;border-radius:10px;
+  top:max(44px, calc(env(safe-area-inset-top) + 8px));
+  right:10px;
+  width:32px;height:32px;
+  background:rgba(0,0,0,.50);
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:8px;
   display:flex;align-items:center;justify-content:center;
-  font-size:18px;cursor:pointer;pointer-events:all;z-index:20;
+  font-size:14px;cursor:pointer;pointer-events:all;z-index:20;
   transition:background .15s;
 }
-#pauseBtn:active{background:rgba(255,255,255,.1);}
+#pauseBtn:active{background:rgba(255,255,255,.15);}
 
 /* Pause overlay */
 #pauseScreen{
@@ -536,37 +711,47 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
   <div id="lobbyContent">
     <!-- 出击 -->
     <div class="tab-page active" id="tab-mission">
-      <div class="mission-banner">
-        <h2>🎮 选择任务</h2>
-        <p>每局15分钟 · 击杀积累经验升级<br>战后提取资源用于永久强化</p>
+      <!-- 大地图背景区（可滑动） -->
+      <div class="mission-map-bg" id="missionMapBg">
+        <canvas class="mission-map-canvas" id="missionMapCanvas" width="390" height="480"></canvas>
+        <!-- 顶部关卡名 -->
+        <div class="mission-map-badge" id="missionMapBadge">绿野战区</div>
+        <!-- 左右箭头 -->
+        <div class="mission-map-arrows">
+          <div class="map-arrow" id="mapArrowL" ontouchend="slideMission(-1)" onclick="slideMission(-1)">‹</div>
+          <div class="map-arrow" id="mapArrowR" ontouchend="slideMission(1)" onclick="slideMission(1)">›</div>
+        </div>
+        <!-- 指示点 -->
+        <div class="mission-dots" id="missionDots">
+          <div class="mission-dot active"></div>
+          <div class="mission-dot"></div>
+          <div class="mission-dot"></div>
+        </div>
+        <!-- 锁定遮罩 -->
+        <div class="mission-lock-mask hidden" id="missionLockMask">
+          <div class="mission-lock-icon">🔒</div>
+          <div class="mission-lock-text">关卡未解锁</div>
+          <div class="mission-lock-req" id="missionLockReq">累计击杀 100 敌人解锁</div>
+        </div>
       </div>
-      <div class="mission-list">
-        <div class="mission-card" id="mc-normal" ontouchend="startMission('normal')" onclick="startMission('normal')">
-          <div class="mc-icon-big">🌿</div>
-          <div class="mc-info">
-            <div class="mc-name">绿野战区</div>
-            <div class="mc-time">⏱ 15分钟 · 普通难度</div>
-            <div class="mc-reward">🔩碎片 &nbsp;📋图纸 &nbsp;⚔️装备</div>
+      <!-- 底部信息卡片 -->
+      <div class="mission-info-card">
+        <div class="mic-top">
+          <div class="mic-icon" id="micIcon">🌿</div>
+          <div class="mic-text">
+            <div class="mic-name" id="micName">绿野战区</div>
+            <div class="mic-tags">
+              <div class="mic-tag diff-normal" id="micDiff">普通难度</div>
+              <div class="mic-tag">⏱ 15分钟</div>
+            </div>
           </div>
         </div>
-        <div class="mission-card" id="mc-hard" ontouchend="startMission('hard')" onclick="startMission('hard')">
-          <div class="mc-icon-big">🏜️</div>
-          <div class="mc-info">
-            <div class="mc-name">沙漠战区</div>
-            <div class="mc-time">⏱ 15分钟 · 精英难度</div>
-            <div class="mc-reward">更多碎片 &nbsp;稀有装备↑</div>
-          </div>
-          <div class="mc-req-badge" id="mc-hard-req">击杀≥100</div>
+        <div class="mic-rewards" id="micRewards">
+          <div class="mic-reward-chip">🔩 金属碎片</div>
+          <div class="mic-reward-chip">📋 图纸</div>
+          <div class="mic-reward-chip">⚔️ 装备</div>
         </div>
-        <div class="mission-card" id="mc-boss" ontouchend="startMission('boss')" onclick="startMission('boss')">
-          <div class="mc-icon-big">🧊</div>
-          <div class="mc-info">
-            <div class="mc-name">冰川战区</div>
-            <div class="mc-time">⏱ 15分钟 · 地狱难度</div>
-            <div class="mc-reward">传说装备 &nbsp;极大量碎片</div>
-          </div>
-          <div class="mc-req-badge" id="mc-boss-req">击杀≥500</div>
-        </div>
+        <button class="btn-go" id="btnGo" ontouchend="onBtnGoTap()" onclick="onBtnGoTap()">出 击</button>
       </div>
     </div>
 
@@ -678,39 +863,39 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 <div class="screen" id="gameScreen">
   <canvas id="gameCanvas" width="390" height="844"></canvas>
   <div id="gameUI">
-    <!-- HUD Top -->
+    <!-- HUD 顶部信息行 -->
     <div id="hudTop">
-      <div class="hud-bars">
-        <div class="bar-row">
-          <span class="bar-ico">❤️</span>
-          <div class="bar-bg"><div id="hpBar" style="width:100%"></div></div>
-          <span class="bar-txt"><span id="hpVal">100</span>/<span id="hpMax">100</span></span>
-        </div>
-        <div class="bar-row">
-          <span class="bar-ico">⭐</span>
-          <div class="bar-bg"><div id="xpBar" style="width:0%"></div></div>
-          <span class="bar-txt">Lv.<span id="lvVal">1</span></span>
-        </div>
+      <div id="hudLeft">
+        <div id="lvBadge">Lv.1</div>
+        <div id="timerBadge"><div id="timerVal">15:00</div><div id="timerLbl"></div></div>
       </div>
-      <div class="hud-right">
-        <div id="timerBadge">
-          <div id="timerVal">15:00</div>
-          <div id="timerLbl">剩余时间</div>
-        </div>
+      <div id="hudCenter"></div>
+      <div id="hudRight">
+        <div class="rr-chip"><span class="rr-chip-icon">🔩</span><span id="irFragments">0</span></div>
+        <div class="rr-chip"><span class="rr-chip-icon">📋</span><span id="irBlueprints">0</span></div>
       </div>
     </div>
-    <!-- Pause button -->
+    <!-- 经验条（顶部细条） -->
+    <div id="hudBars">
+      <div class="bar-full-row">
+        <div id="xpBar" style="width:0%"></div>
+      </div>
+    </div>
+    <!-- 隐藏节点供 JS 读写 HP 数据 -->
+    <div style="display:none">
+      <div id="hpBar" style="width:100%"></div>
+      <span id="hpVal">100</span>/<span id="hpMax">100</span>
+      <div id="hpLabel"></div>
+    </div>
+    <!-- 暂停按钮 -->
     <div id="pauseBtn" ontouchend="togglePause()" onclick="togglePause()">⏸</div>
-    <!-- Sub badges -->
-    <div style="position:absolute;top:max(100px, calc(env(safe-area-inset-top) + 58px));left:14px;display:flex;gap:6px;pointer-events:none;">
-      <div class="hud-badge">🌊 <span id="waveVal">1</span>/50</div>
-      <div class="hud-badge">💀 <span id="killVal">0</span></div>
+    <!-- 旧资源栏保留供兼容 -->
+    <div id="runResBar" style="display:none">
+      <span id="irFragments2"></span><span id="irBlueprints2"></span>
     </div>
-    <!-- Run resources -->
-    <div id="runResBar">
-      <div class="rr-chip">🔩<span id="irFragments">0</span></div>
-      <div class="rr-chip">📋<span id="irBlueprints">0</span></div>
-    </div>
+    <!-- 隐藏数据节点 -->
+    <span id="waveVal" style="display:none">1</span>
+    <span id="killVal" style="display:none">0</span>
     <!-- Weapon bar -->
     <div id="weaponBar"></div>
     <!-- Joystick -->
@@ -723,12 +908,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
       <div class="wave-sub"   id="waveAnnSub">敌人来袭！</div>
     </div>
     <!-- Level-up overlay -->
-    <div class="g-overlay" id="levelupScreen" style="display:none;">
+    <div id="levelupScreen" style="display:none;">
       <div class="lu-hdr">
-        <h3>⬆️ 等级提升！</h3>
-        <p>选择一项强化</p>
+        <h3>选择强化技能</h3>
         <div class="lu-queue" id="levelupQueue"></div>
       </div>
+      <!-- 经验进度条 -->
+      <div class="lu-xp-bar-wrap">
+        <div class="lu-xp-bar-fill" id="luXpBar" style="width:0%"></div>
+      </div>
+      <!-- 卡片列表 -->
       <div class="lu-cards-scroll" id="cardsRow"></div>
     </div>
     <!-- Pause overlay -->
@@ -948,6 +1137,7 @@ function switchTab(tab){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   document.getElementById('nav-'+tab).classList.add('active');
+  if(tab==='mission')    renderMissionTab();
   if(tab==='character')  renderCharacterTab();
   if(tab==='agent')      renderAgentTab();
   if(tab==='blueprints') renderBPTab();
@@ -1115,17 +1305,214 @@ function showToast(msg){
   setTimeout(()=>t.remove(),2000);
 }
 
+// ── 关卡定义 ──
+const MISSIONS = [
+  {
+    id:'normal', name:'绿野战区', icon:'🌿',
+    diff:'普通难度', diffClass:'diff-normal',
+    bg:{ sky:'#4a7c3f', ground:'#2d5a27', accent:'#6aaa5a' },
+    char:'🧑‍✈️',
+    rewards:['🔩 金属碎片','📋 图纸','⚔️ 装备'],
+    req:0, reqText:'',
+  },
+  {
+    id:'hard', name:'沙漠战区', icon:'🏜️',
+    diff:'精英难度', diffClass:'diff-hard',
+    bg:{ sky:'#c4903a', ground:'#8b6020', accent:'#e6b050' },
+    char:'🧑‍✈️',
+    rewards:['🔩 更多碎片','⚔️ 稀有装备↑'],
+    req:100, reqText:'累计击杀 100 敌人解锁',
+  },
+  {
+    id:'boss', name:'冰川战区', icon:'🧊',
+    diff:'地狱难度', diffClass:'diff-boss',
+    bg:{ sky:'#2a4a8a', ground:'#1a3060', accent:'#4a80d0' },
+    char:'🧑‍✈️',
+    rewards:['🌟 传说装备','🔩 极大量碎片'],
+    req:500, reqText:'累计击杀 500 敌人解锁',
+  },
+];
+let currentMissionIdx = 0; // 当前选中的关卡索引
+
+function getMissionById(id){ return MISSIONS.find(m=>m.id===id)||MISSIONS[0]; }
+
 function renderLobby(){
   document.getElementById('resFragments').textContent = save.fragments;
   document.getElementById('resBlueprints').textContent = Object.values(save.blueprints).reduce((a,b)=>a+b,0);
   document.getElementById('resTotalKills').textContent = save.totalKills;
   document.getElementById('agentStars').textContent = agentStars();
   document.getElementById('agentLevel').textContent  = agentLevel();
-  const hk = save.totalKills>=100, bk = save.totalKills>=500;
-  document.getElementById('mc-hard').classList.toggle('locked',!hk);
-  document.getElementById('mc-boss').classList.toggle('locked',!bk);
-  document.getElementById('mc-hard-req').style.display = hk?'none':'block';
-  document.getElementById('mc-boss-req').style.display = bk?'none':'block';
+  renderMissionTab();
+}
+
+function renderMissionTab(){
+  const m = MISSIONS[currentMissionIdx];
+  const unlocked = save.totalKills >= m.req;
+
+  // 地图背景 Canvas 绘制
+  const canvas = document.getElementById('missionMapCanvas');
+  if(canvas){
+    const ctx2 = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    drawMissionMap(ctx2, W, H, m);
+  }
+
+  // 关卡名徽章
+  document.getElementById('missionMapBadge').textContent = m.name;
+
+  // 指示点
+  const dots = document.getElementById('missionDots').children;
+  for(let i=0;i<dots.length;i++){
+    dots[i].classList.toggle('active', i===currentMissionIdx);
+  }
+
+  // 锁定遮罩
+  const mask = document.getElementById('missionLockMask');
+  if(unlocked){
+    mask.classList.add('hidden');
+  } else {
+    mask.classList.remove('hidden');
+    document.getElementById('missionLockReq').textContent = m.reqText;
+  }
+
+  // 底部信息卡片
+  document.getElementById('micIcon').textContent = m.icon;
+  document.getElementById('micName').textContent = m.name;
+  const diffEl = document.getElementById('micDiff');
+  diffEl.textContent = m.diff;
+  diffEl.className = `mic-tag ${m.diffClass}`;
+  const rewardsEl = document.getElementById('micRewards');
+  rewardsEl.innerHTML = m.rewards.map(r=>`<div class="mic-reward-chip">${r}</div>`).join('');
+
+  // 出击按钮
+  const btn = document.getElementById('btnGo');
+  if(unlocked){
+    btn.classList.remove('locked');
+    btn.disabled = false;
+  } else {
+    btn.classList.add('locked');
+    btn.disabled = true;
+  }
+}
+
+function drawMissionMap(ctx2, W, H, m){
+  const bg = m.bg;
+  // 天空渐变
+  const skyGrad = ctx2.createLinearGradient(0,0,0,H*0.55);
+  skyGrad.addColorStop(0, shiftColor(bg.sky, 30));
+  skyGrad.addColorStop(1, bg.sky);
+  ctx2.fillStyle = skyGrad;
+  ctx2.fillRect(0,0,W,H*0.55);
+
+  // 地面渐变
+  const groundGrad = ctx2.createLinearGradient(0,H*0.55,0,H);
+  groundGrad.addColorStop(0, bg.ground);
+  groundGrad.addColorStop(1, shiftColor(bg.ground,-20));
+  ctx2.fillStyle = groundGrad;
+  ctx2.fillRect(0,H*0.55,W,H*0.45);
+
+  // 装饰元素（根据关卡类型）
+  drawMapDecorations(ctx2, W, H, m);
+
+  // 角色（居中偏下）
+  ctx2.font = `${W*0.18}px serif`;
+  ctx2.textAlign = 'center';
+  ctx2.textBaseline = 'middle';
+  ctx2.fillText(m.char, W/2, H*0.58);
+  // 角色阴影
+  ctx2.beginPath();
+  ctx2.ellipse(W/2, H*0.65, W*0.06, H*0.012, 0, 0, Math.PI*2);
+  ctx2.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx2.fill();
+}
+
+function drawMapDecorations(ctx2, W, H, m){
+  ctx2.save();
+  if(m.id === 'normal'){
+    // 绿野：树木
+    const trees = [[0.1,0.45],[0.2,0.42],[0.75,0.44],[0.85,0.41],[0.92,0.47]];
+    trees.forEach(([xr,yr])=>{
+      // 树干
+      ctx2.fillStyle='#5a3a1a';
+      ctx2.fillRect(W*xr-4, H*yr, 8, H*0.14);
+      // 树冠
+      ctx2.beginPath();
+      ctx2.arc(W*xr, H*(yr-0.04), W*0.06, 0, Math.PI*2);
+      ctx2.fillStyle = m.bg.accent;
+      ctx2.fill();
+    });
+    // 草地纹理
+    for(let i=0;i<20;i++){
+      ctx2.beginPath();
+      const gx = W*(0.05+i*0.05), gy = H*0.55;
+      ctx2.moveTo(gx, gy);
+      ctx2.lineTo(gx-3, gy-8);
+      ctx2.lineTo(gx+3, gy-8);
+      ctx2.closePath();
+      ctx2.fillStyle = shiftColor(m.bg.accent, 10);
+      ctx2.fill();
+    }
+  } else if(m.id === 'hard'){
+    // 沙漠：沙丘 + 仙人掌
+    ctx2.beginPath();
+    ctx2.moveTo(0, H*0.55);
+    for(let i=0;i<=10;i++){
+      const sx = W*i/10;
+      const sy = H*0.55 - Math.sin(i*0.8)*H*0.05;
+      ctx2.lineTo(sx, sy);
+    }
+    ctx2.lineTo(W, H*0.55); ctx2.closePath();
+    ctx2.fillStyle = m.bg.accent;
+    ctx2.fill();
+    // 仙人掌
+    [[0.15,0.5],[0.8,0.48]].forEach(([xr,yr])=>{
+      ctx2.fillStyle='#3a6a20';
+      ctx2.fillRect(W*xr-5, H*(yr-0.1), 10, H*0.15);
+      ctx2.fillRect(W*xr-18, H*(yr-0.06), 14, 7);
+      ctx2.fillRect(W*xr+5, H*(yr-0.04), 14, 7);
+    });
+  } else if(m.id === 'boss'){
+    // 冰川：冰块 + 雪地
+    // 雪地
+    ctx2.beginPath();
+    ctx2.moveTo(0, H*0.56);
+    for(let i=0;i<=20;i++){
+      const sx=W*i/20, sy=H*0.56 - Math.abs(Math.sin(i*1.3))*H*0.02;
+      ctx2.lineTo(sx,sy);
+    }
+    ctx2.lineTo(W,H*0.56);ctx2.lineTo(W,H);ctx2.lineTo(0,H);ctx2.closePath();
+    ctx2.fillStyle='#ccddf0';
+    ctx2.fill();
+    // 冰柱
+    [[0.1,0.54],[0.2,0.5],[0.7,0.52],[0.85,0.48]].forEach(([xr,yr])=>{
+      ctx2.beginPath();
+      const cx=W*xr, cy=H*yr, tw=W*0.04, th=H*0.1;
+      ctx2.moveTo(cx-tw/2,cy);ctx2.lineTo(cx+tw/2,cy);ctx2.lineTo(cx,cy-th);ctx2.closePath();
+      ctx2.fillStyle='rgba(180,220,255,0.8)';
+      ctx2.fill();
+      ctx2.strokeStyle='rgba(255,255,255,0.5)';ctx2.lineWidth=1;ctx2.stroke();
+    });
+  }
+  ctx2.restore();
+}
+
+function shiftColor(hex, amount){
+  const r = Math.min(255, Math.max(0, parseInt(hex.slice(1,3),16)+amount));
+  const g = Math.min(255, Math.max(0, parseInt(hex.slice(3,5),16)+amount));
+  const b = Math.min(255, Math.max(0, parseInt(hex.slice(5,7),16)+amount));
+  return `rgb(${r},${g},${b})`;
+}
+
+function slideMission(dir){
+  const newIdx = (currentMissionIdx + dir + MISSIONS.length) % MISSIONS.length;
+  currentMissionIdx = newIdx;
+  renderMissionTab();
+}
+
+function onBtnGoTap(){
+  const m = MISSIONS[currentMissionIdx];
+  if(save.totalKills < m.req) return;
+  startMission(m.id);
 }
 
 function renderAgentTab(){
@@ -1350,7 +1737,7 @@ function spawnEquipDrop(x,y,isBoss){
   const slotType= slots[rngI(0,slots.length-1)];
   const rarity = rollEquipRarity(isBoss);
   const eq = generateEquip(slotType, rarity);
-  const rarDef=EQUIP_RARITIES[finalRarity];
+  const rarDef=EQUIP_RARITIES[rarity];
   equipDrops.push({x,y,eq,r:11,bobTime:rng(0,TAU),color:rarDef.color});
 }
 
@@ -2022,26 +2409,54 @@ function gainXP(xp){
   updateHUD();
 }
 
+let _pickingUpgrade = false; // 防止 touchend+click 双重触发
 function showNextLevelUp(){
   if(levelUpQueue<=0){
     levelUpActive=false;
-    // BUG FIX: 队列耗尽时必须把 gState 改回 play，否则游戏永久卡在升级界面
     if(gState==='levelup') gState='play';
     document.getElementById('levelupScreen').style.display='none';
     return;
   }
+  _pickingUpgrade = false;
   levelUpActive=true; levelUpQueue--; gState='levelup';
   Audio.levelUp();
+  // 更新队列提示
   document.getElementById('levelupQueue').textContent=levelUpQueue>0?`还有 ${levelUpQueue} 次待选择`:'';
+  // 同步经验进度条
+  const xpPct=clamp(player.xp/player.xpNext*100,0,100);
+  const luXp=document.getElementById('luXpBar');
+  if(luXp) luXp.style.width=xpPct+'%';
+
   const cards=pickUpgrades(3), row=document.getElementById('cardsRow');
   row.innerHTML='';
   cards.forEach(upg=>{
-    const el=document.createElement('div'); el.className='card';
-    const rLabel={common:'普通',rare:'稀有',epic:'史诗'}[upg.rarity]||upg.rarity;
+    const el=document.createElement('div');
     const rClass=`rarity-${upg.rarity}`;
-    el.innerHTML=`<div class="card-icon">${upg.icon}</div><div class="card-body"><div class="card-name">${upg.name}</div><div class="card-desc">${upg.desc}</div><div class="card-rarity ${rClass}">${rLabel}</div></div>`;
-    el.addEventListener('touchend',ev=>{ev.preventDefault();applyUpgrade(upg);document.getElementById('levelupScreen').style.display='none';gState='play';showNextLevelUp();});
-    el.addEventListener('click',()=>{applyUpgrade(upg);document.getElementById('levelupScreen').style.display='none';gState='play';showNextLevelUp();});
+    el.className=`card ${rClass}`;
+    const rLabel={common:'普通',rare:'稀有',epic:'史诗',legend:'传说'}[upg.rarity]||upg.rarity;
+    const rColor={common:'#95a5a6',rare:'#3498db',epic:'#9b59b6',legend:'#f9ca24'}[upg.rarity]||'#aaa';
+    // 检测是否已有该武器（用于显示"升级"还是"解锁"）
+    const isUpgrade = upg.type==='weapon' && player.weapons.find(w=>w.defId===upg.weaponId);
+    const btnLabel = isUpgrade ? '↑' : '+';
+    el.innerHTML=`
+      <div class="card-icon">${upg.icon}</div>
+      <div class="card-body">
+        <div class="card-name">${upg.name}${isUpgrade?'<span style="color:#f9ca24;font-size:10px;margin-left:6px">升级</span>':''}</div>
+        <div class="card-desc">${upg.desc}</div>
+        <div class="card-rarity ${rClass}" style="color:${rColor}">${rLabel}</div>
+      </div>
+      <div class="card-btn">${btnLabel}</div>`;
+    function pickThis(ev){
+      if(ev && ev.cancelable) ev.preventDefault();
+      if(_pickingUpgrade) return;
+      _pickingUpgrade = true;
+      applyUpgrade(upg);
+      document.getElementById('levelupScreen').style.display='none';
+      gState='play';
+      showNextLevelUp();
+    }
+    el.addEventListener('touchend', pickThis, {passive:false});
+    el.addEventListener('click', pickThis);
     row.appendChild(el);
   });
   document.getElementById('levelupScreen').style.display='flex';
@@ -2111,13 +2526,13 @@ function updateSpawner(delta){
 
 // ── HUD ──
 function updateHUD(){
-  const hpP=clamp(player.hp/player.maxHp*100,0,100), xpP=clamp(player.xp/player.xpNext*100,0,100);
+  const hpP=clamp(player.hp/player.maxHp*100,0,100);
+  const xpP=clamp(player.xp/player.xpNext*100,0,100);
   document.getElementById('hpBar').style.width=hpP+'%';
   document.getElementById('xpBar').style.width=xpP+'%';
   document.getElementById('hpVal').textContent=Math.ceil(player.hp);
   document.getElementById('hpMax').textContent=player.maxHp;
-  document.getElementById('lvVal').textContent=player.level;
-  document.getElementById('killVal').textContent=killCount;
+  document.getElementById('lvBadge').textContent='Lv.'+player.level;
   const rem=Math.max(0,Math.ceil(MISSION_DURATION-gameTime));
   document.getElementById('timerVal').textContent=String(Math.floor(rem/60)).padStart(2,'0')+':'+String(rem%60).padStart(2,'0');
 }
@@ -2427,6 +2842,15 @@ function render(){
       ctx.beginPath();ctx.arc(p.r*.36,0,p.r*.34,-Math.PI*.58,Math.PI*.58);ctx.fillStyle='#dfe6e988';ctx.fill();
       ctx.fillStyle='#2d3436';ctx.fillRect(p.r*.5,-2.5,p.r*.95,5);
     }
+    // 脚下血条
+    const bw=p.r*2.8, bh=4;
+    const by=p.r+7;
+    const pct=clamp(p.hp/p.maxHp,0,1);
+    ctx.fillStyle='rgba(0,0,0,.55)';
+    ctx.beginPath();ctx.roundRect(-bw/2,by,bw,bh,2);ctx.fill();
+    const hc=pct>0.5?'#2ecc71':pct>0.25?'#f39c12':'#e74c3c';
+    ctx.fillStyle=hc;
+    ctx.beginPath();ctx.roundRect(-bw/2,by,bw*pct,bh,2);ctx.fill();
     ctx.restore();
   }
   ctx.restore();
@@ -2450,6 +2874,7 @@ function drawMinimap(){
 function gameLoop(ts){
   if(!lastTs) lastTs=ts;
   dt=Math.min((ts-lastTs)/1000,.05); lastTs=ts;
+
   if(gState==='play'){
     gameTime+=dt;
     updatePlayer(dt); updateWeapons(dt); updateBullets(dt);
@@ -2459,24 +2884,29 @@ function gameLoop(ts){
     updateHUD();
     if(gameTime>=MISSION_DURATION){endRun(true);return;}
   }
-  // pause 时只渲染，不更新
+
+  // pause 时只渲染，保持循环（由 lastTs=0 防止恢复时 dt 跳变）
   if(gState==='pause'){
+    lastTs=0;
     render();
-    lastTs=0; // 清零，防止恢复时dt跳变
-    return;   // 暂停状态不继续调度，由 togglePause 重启
+    animFrame=requestAnimationFrame(gameLoop);
+    return;
   }
+
+  // results / levelup：只渲染，保持循环
   render();
   animFrame=requestAnimationFrame(gameLoop);
 }
 
 // ── START GAME ──
 function togglePause(){
-  if(gState==='results'||gState==='levelup') return;
+  if(gState==='results') return;
+  // levelup 时不允许暂停，避免状态混乱
+  if(gState==='levelup') return;
   if(gState==='play'){
     gState='pause';
     Audio.pauseBGM();
     document.getElementById('pauseBtn').textContent='▶️';
-    // fill pause stats
     document.getElementById('pauseWave').textContent  = wave+' / '+MAX_WAVES;
     document.getElementById('pauseKills').textContent = killCount;
     document.getElementById('pauseLevel').textContent = player.level;
@@ -2488,8 +2918,7 @@ function togglePause(){
     Audio.resumeBGM();
     document.getElementById('pauseBtn').textContent='⏸';
     document.getElementById('pauseScreen').style.display='none';
-    lastTs=0;
-    animFrame=requestAnimationFrame(gameLoop);
+    lastTs=0; // 防止恢复时 dt 跳变（gameLoop 已在循环中，无需重启）
   }
 }
 
@@ -2854,9 +3283,30 @@ const Audio = (() => {
 })();
 
 // ── INIT ──
-// 手机端：首次触摸时初始化 AudioContext
 document.addEventListener('touchstart', ()=>Audio.init(), {once:true});
 document.addEventListener('click',      ()=>Audio.init(), {once:true});
+
+// 地图区域左右滑动手势
+(function(){
+  let _sx=0, _sy=0, _dragging=false;
+  const el = document.getElementById('missionMapBg');
+  if(!el) return;
+  el.addEventListener('touchstart', e=>{
+    _sx = e.touches[0].clientX;
+    _sy = e.touches[0].clientY;
+    _dragging = true;
+  }, {passive:true});
+  el.addEventListener('touchend', e=>{
+    if(!_dragging) return;
+    _dragging = false;
+    const dx = e.changedTouches[0].clientX - _sx;
+    const dy = e.changedTouches[0].clientY - _sy;
+    if(Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40){
+      slideMission(dx < 0 ? 1 : -1);
+    }
+  }, {passive:true});
+})();
+
 renderLobby();
 </script>
 </body>

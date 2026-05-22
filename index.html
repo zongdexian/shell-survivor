@@ -392,43 +392,46 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
    - 血条：在角色脚下由 Canvas 绘制
    ===================================================== */
 
-/* 顶部整体容器 */
+/* ── 计时器：经验条正上方居中，独立定位 ── */
+#timerBadge{
+  position:absolute;
+  /* 经验条在 max(76px,…)，计时器紧贴其上方 */
+  bottom:calc(100% - max(76px, calc(env(safe-area-inset-top) + 40px)));
+  top:max(44px, calc(env(safe-area-inset-top) + 8px));
+  left:0;right:0;
+  display:flex;align-items:flex-end;justify-content:center;
+  pointer-events:none;z-index:4;
+  padding-bottom:4px;
+}
+#timerVal{
+  color:#fff;
+  font-size:26px;font-weight:bold;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:2px;line-height:1;
+  text-shadow:0 2px 10px rgba(0,0,0,.9);
+}
+#timerLbl{ display:none; }
+
+/* ── 顶部信息行：等级(左) + 资源(右)，经验条上方 ── */
 #hudTop{
   position:absolute;top:0;left:0;right:0;
   padding-top:max(46px, calc(env(safe-area-inset-top) + 10px));
-  padding-bottom:6px;
+  padding-bottom:5px;
   padding-left:12px;
-  padding-right:50px; /* 留给暂停按钮 */
+  padding-right:50px;
   display:flex;align-items:center;
   pointer-events:none;z-index:3;
 }
-/* 左：等级 */
 #hudLeft{ flex-shrink:0; }
 #lvBadge{
   background:rgba(0,0,0,.6);
   border:1px solid rgba(249,202,36,.45);
   border-radius:20px;
-  padding:4px 11px;
-  font-size:12px;font-weight:bold;color:#f9ca24;
+  padding:3px 10px;
+  font-size:11px;font-weight:bold;color:#f9ca24;
   white-space:nowrap;
 }
-/* 中：计时器，绝对居中 */
-#hudCenter{
-  position:absolute;left:0;right:0;
-  display:flex;justify-content:center;
-  pointer-events:none;
-}
-#timerBadge{ text-align:center; }
-#timerVal{
-  color:#fff;
-  font-size:28px;font-weight:bold;
-  font-variant-numeric:tabular-nums;
-  letter-spacing:2px;line-height:1;
-  text-shadow:0 2px 12px rgba(0,0,0,.8), 0 0 20px rgba(255,255,255,.15);
-}
-#timerLbl{ display:none; }
-
-/* 右：资源 */
+#hudCenter{ flex:1; } /* 纯占位，计时器已独立定位 */
 #hudRight{
   margin-left:auto;
   display:flex;align-items:center;gap:6px;flex-shrink:0;
@@ -443,10 +446,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 .rr-chip-icon{font-size:12px;line-height:1;}
 #runResBar{display:none;}
 
-/* 经验条 — 顶部细条，紧接顶栏下方 */
+/* ── 经验条：计时器下方紧贴 ── */
 #hudBars{
   position:absolute;left:0;right:0;
-  top:max(82px, calc(env(safe-area-inset-top) + 46px));
+  top:max(76px, calc(env(safe-area-inset-top) + 40px));
   pointer-events:none;z-index:3;
 }
 .bar-full-row{
@@ -867,7 +870,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
     <div id="hudTop">
       <div id="hudLeft">
         <div id="lvBadge">Lv.1</div>
-        <div id="timerBadge"><div id="timerVal">15:00</div><div id="timerLbl"></div></div>
       </div>
       <div id="hudCenter"></div>
       <div id="hudRight">
@@ -875,6 +877,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
         <div class="rr-chip"><span class="rr-chip-icon">📋</span><span id="irBlueprints">0</span></div>
       </div>
     </div>
+    <!-- 计时器：经验条正上方居中 -->
+    <div id="timerBadge"><div id="timerVal">15:00</div><div id="timerLbl"></div></div>
     <!-- 经验条（顶部细条） -->
     <div id="hudBars">
       <div class="bar-full-row">

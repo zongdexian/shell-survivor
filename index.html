@@ -932,7 +932,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
         <div class="pause-stat">当前波次 <span id="pauseWave">1 / 50</span></div>
         <div class="pause-stat">击杀数   <span id="pauseKills">0</span></div>
         <div class="pause-stat">玩家等级 <span id="pauseLevel">1</span></div>
-        <div class="pause-stat">剩余时间 <span id="pauseTimer">-</span></div>
+        <div class="pause-stat">已用时间 <span id="pauseTimer">-</span></div>
       </div>
       <button class="g-btn" ontouchend="togglePause()" onclick="togglePause()">▶️ 继续游戏</button>
       <button class="g-btn secondary" style="margin-top:6px;" ontouchend="abandonAndReturn()" onclick="abandonAndReturn()">🏠 放弃返回基地</button>
@@ -2743,11 +2743,17 @@ const MAX_WEAPON_LEVEL = 8;
 // ── 升级池 ──
 // 武器升级选项（从 WEAPON_DEFS 动态生成）
 function buildWeaponUpgrades(){
-  return Object.values(WEAPON_DEFS).map(def=>({
-    id:'w_'+def.id, name:def.name, icon:def.icon,
-    rarity: ['whip','wand','knife'].includes(def.id)?'common':['axe','cross','bible','garlic','holywater'].includes(def.id)?'rare':'epic',
-    type:'weapon', weaponId:def.id, desc:def.desc,
-  }));
+  return Object.values(WEAPON_DEFS)
+    .filter(def=>{
+      // 法老之歌只在精英/地狱难度出现
+      if(def.id==='mana' && currentMission==='normal') return false;
+      return true;
+    })
+    .map(def=>({
+      id:'w_'+def.id, name:def.name, icon:def.icon,
+      rarity: ['whip','wand','knife'].includes(def.id)?'common':['axe','cross','bible','garlic','holywater'].includes(def.id)?'rare':'epic',
+      type:'weapon', weaponId:def.id, desc:def.desc,
+    }));
 }
 
 // 被动升级选项
@@ -4126,8 +4132,8 @@ function updateHUD(){
   document.getElementById('hpVal').textContent=Math.ceil(player.hp);
   document.getElementById('hpMax').textContent=player.maxHp;
   document.getElementById('lvBadge').textContent='Lv.'+player.level;
-  const rem=Math.max(0,Math.ceil(MISSION_DURATION-gameTime));
-  document.getElementById('timerVal').textContent=String(Math.floor(rem/60)).padStart(2,'0')+':'+String(rem%60).padStart(2,'0');
+  const elapsed=Math.floor(gameTime);
+  document.getElementById('timerVal').textContent=String(Math.floor(elapsed/60)).padStart(2,'0')+':'+String(elapsed%60).padStart(2,'0');
 }
 function updateWeaponUI(){
   const list=document.getElementById('weaponBar'); list.innerHTML='';
@@ -4866,8 +4872,8 @@ function togglePause(){
     document.getElementById('pauseWave').textContent  = wave+' / '+MAX_WAVES;
     document.getElementById('pauseKills').textContent = killCount;
     document.getElementById('pauseLevel').textContent = player.level;
-    const rem=Math.max(0,Math.ceil(MISSION_DURATION-gameTime));
-    document.getElementById('pauseTimer').textContent = String(Math.floor(rem/60)).padStart(2,'0')+':'+String(rem%60).padStart(2,'0');
+    const elapsed2=Math.floor(gameTime);
+    document.getElementById('pauseTimer').textContent = String(Math.floor(elapsed2/60)).padStart(2,'0')+':'+String(elapsed2%60).padStart(2,'0');
     document.getElementById('pauseScreen').style.display='flex';
   } else if(gState==='pause'){
     gState='play';

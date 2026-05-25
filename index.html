@@ -1643,6 +1643,16 @@ const CW = canvas.width, CH = canvas.height; // 390 × 844
 
 const TAU   = Math.PI*2;
 const rng   = (a,b)=>Math.random()*(b-a)+a;
+
+// ── 动态镜头缩放 ──
+// zoom=1.0 → 正常，zoom<1 → 拉远（视野变大），zoom>1 → 推近
+// 根据同屏怪物数量线性映射
+const ZOOM_MAX   = 1.0;   // 怪少时（正常大小）
+const ZOOM_MIN   = 0.65;  // 怪多时（拉远到65%，视野约1.5倍）
+const ZOOM_ENEMY_LOW  = 30;   // 低于此数量不缩放
+const ZOOM_ENEMY_HIGH = 200;  // 达到此数量缩放到最远
+let camZoom       = 1.0;  // 当前缩放值
+let camZoomTarget = 1.0;  // 目标缩放值
 const rngI  = (a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const dist  = (a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
@@ -2252,7 +2262,7 @@ function spawnEnemy(typeId,x,y,overrides){
 
 // 精英怪生成
 function spawnElite(schedule){
-  const a=rng(0,TAU), d=Math.max(CW,CH)*0.9+80;
+  const a=rng(0,TAU), d=Math.max(CW,CH)*0.9/camZoom+80;
   const ex=clamp(player.x+Math.cos(a)*d,80,WORLD_W-80);
   const ey=clamp(player.y+Math.sin(a)*d,80,WORLD_H-80);
   // 选择一个强壮的基础类型
@@ -2804,7 +2814,8 @@ function spawnParticles(x,y,color,n=8,speed=80,life=.5){
 }
 
 function spawnDmgText(wx,wy,text,color){
-  const sx=wx-cam.x+CW/2, sy=wy-cam.y+CH/2;
+  // 世界坐标 → 屏幕坐标（考虑 camZoom）
+  const sx=(wx-cam.x)*camZoom+CW/2, sy=(wy-cam.y)*camZoom+CH/2;
   if(sx<-40||sx>CW+40||sy<-40||sy>CH+40) return;
   const el=document.createElement('div');
   el.className='dmg-text'; el.textContent=text;
@@ -2842,7 +2853,7 @@ function spawnWaveEnemy(){
     const fallback=pool.filter(t=>t!=='shooter');
     type=fallback.length>0?fallback[rngI(0,fallback.length-1)]:'grunt';
   }
-  const a=rng(0,TAU), d=Math.max(CW,CH)*.8+60;
+  const a=rng(0,TAU), d=Math.max(CW,CH)*0.8/camZoom+60;
   spawnEnemy(type,clamp(player.x+Math.cos(a)*d,60,WORLD_W-60),clamp(player.y+Math.sin(a)*d,60,WORLD_H-60));
 }
 function spawnBoss(){
@@ -3158,6 +3169,25 @@ function updateTiling(){
     cellOffX=nx; cellOffY=ny;
     rebuildDecorations();
   }
+}
+
+function updateCameraZoom(delta){
+  // 统计当前屏幕内活跃怪物数量
+  const hW=CW/2/camZoom, hH=CH/2/camZoom; // 考虑当前缩放后的视野
+  let onScreen=0;
+  for(let i=0;i<enemies.length;i++){
+    const e=enemies[i];
+    if(Math.abs(e.x-cam.x)<hW+60 && Math.abs(e.y-cam.y)<hH+60) onScreen++;
+  }
+
+  // 线性映射：怪物数量 → 目标缩放
+  const t=clamp((onScreen-ZOOM_ENEMY_LOW)/(ZOOM_ENEMY_HIGH-ZOOM_ENEMY_LOW),0,1);
+  camZoomTarget=ZOOM_MAX+(ZOOM_MIN-ZOOM_MAX)*t; // zoom_max→zoom_min
+
+  // 平滑插值：拉远慢(2)，拉回快(5)
+  const smoothSpd = camZoomTarget > camZoom ? 2.0 : 5.0;
+  camZoom = lerp(camZoom, camZoomTarget, smoothSpd*delta);
+  camZoom = clamp(camZoom, ZOOM_MIN, ZOOM_MAX);
 }
 
 // 初始化隐藏被动道具（相对出生点固定偏移）
@@ -3787,10 +3817,12 @@ function updateBullets(delta){
 
     // 弹球反弹逻辑（基于视口边缘，即相机可见范围）
     if(b.isBouncer){
-      const left  = cam.x - CW/2 + b.r;
-      const right = cam.x + CW/2 - b.r;
-      const top   = cam.y - CH/2 + b.r;
-      const bot   = cam.y + CH/2 - b.r;
+      // 反弹边界随 camZoom 变化（镜头拉远时视野变大）
+      const hw=CW/2/camZoom, hh=CH/2/camZoom;
+      const left  = cam.x - hw + b.r;
+      const right = cam.x + hw - b.r;
+      const top   = cam.y - hh + b.r;
+      const bot   = cam.y + hh - b.r;
       let bounced = false;
       if(b.x < left)  { b.x = left;  b.vx = Math.abs(b.vx);  bounced=true; }
       if(b.x > right) { b.x = right; b.vx = -Math.abs(b.vx); bounced=true; }
@@ -4183,7 +4215,7 @@ function spawnWaveEnemy(){
   const type=pool[rngI(0,pool.length-1)];
   // 尝试找一个不在树木内的刷新点（最多10次）
   for(let attempt=0;attempt<10;attempt++){
-    const a=rng(0,TAU), d=Math.max(CW,CH)*.85+60;
+    const a=rng(0,TAU), d=Math.max(CW,CH)*0.85/camZoom+60;
     const ex=player.x+Math.cos(a)*d;
     const ey=player.y+Math.sin(a)*d;
     if(!isInTree(ex,ey)){
@@ -4192,7 +4224,7 @@ function spawnWaveEnemy(){
     }
   }
   // 10次都碰树就直接生成（不卡死）
-  const a2=rng(0,TAU), d2=Math.max(CW,CH)*.85+60;
+  const a2=rng(0,TAU), d2=Math.max(CW,CH)*0.85/camZoom+60;
   spawnEnemy(type,player.x+Math.cos(a2)*d2,player.y+Math.sin(a2)*d2);
 }
 
@@ -4324,7 +4356,11 @@ function updateWeaponUI(){
 function render(){
   ctx.clearRect(0,0,CW,CH);
   ctx.save();
-  ctx.translate(CW/2-cam.x, CH/2-cam.y);
+  // 动态缩放：以画布中心为锚点 scale，再 translate
+  // 等效于 orthographic size 变化
+  ctx.translate(CW/2, CH/2);
+  ctx.scale(camZoom, camZoom);
+  ctx.translate(-cam.x, -cam.y);
 
   // ── 无限循环地图背景 ──
   // 瓦片以像素坐标无限铺设，只绘制视野内的部分
@@ -5063,7 +5099,7 @@ function gameLoop(ts){
   if(gState==='play'||gState==='roulette'){
     if(gState==='play'){
       gameTime+=dt;
-      updatePlayer(dt); updateTiling(); updateWeapons(dt); updateBullets(dt);
+      updatePlayer(dt); updateTiling(); updateCameraZoom(dt); updateWeapons(dt); updateBullets(dt);
       shockRingTime+=dt;
       updateBibleOrbs(dt); updateGarlicAura(dt); updateHolyWater(dt); updateLightning(dt); updateBirds(dt);
       updateOrbitalSatellites(dt); updateDurianOrbs(dt); updateAxeProjectiles(dt);
@@ -5137,7 +5173,7 @@ function startGame(){
   playerPassives={};
   playerStats={might:1,cooldown:1,area:1,speed:1,duration:1,amount:0,regen:0,gold:1,xpGain:1,pickup:0,revive:0,luck:0,armor:0};
   arena.active=false; arena.r=0; arena.bossUid=-1;
-  shockRingTime=0; _breathPhase=0;
+  shockRingTime=0; _breathPhase=0; camZoom=1.0; camZoomTarget=1.0;
   levelUpQueue=0;levelUpActive=false;_uid=0; gState='play';
   releaseJoystick();
 

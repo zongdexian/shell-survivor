@@ -468,48 +468,47 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 #hpLabel{ display:none; }
 
 /* ── 武器&被动栏 — 底部固定，每行6格 ── */
+/* 武器&被动UI — 经验条正下方，左对齐 */
 #weaponBar{
   position:absolute;
-  bottom:calc(env(safe-area-inset-bottom,0px)+10px);
-  left:0;right:0;
-  display:flex;flex-direction:column;gap:3px;
-  padding:0 8px;
+  /* 经验条 top=max(76px,...)+4px高 = 约80px，再留2px间距 */
+  top:max(82px, calc(env(safe-area-inset-top) + 46px));
+  left:6px;
+  display:flex;flex-direction:column;gap:2px;
   pointer-events:none;
-  z-index:2;
+  z-index:3;
 }
 .wbar-row{
-  display:flex;gap:3px;justify-content:center;
+  display:flex;gap:2px;justify-content:flex-start;
 }
 .wbar-row-label{
-  font-size:7px;color:rgba(255,255,255,0.35);
-  text-align:center;letter-spacing:.5px;margin-bottom:1px;
+  font-size:6px;color:rgba(255,255,255,0.30);
+  text-align:left;letter-spacing:.5px;margin-bottom:1px;
 }
 .weapon-slot{
-  width:46px;height:44px;
-  background:rgba(10,10,20,.78);
-  border:1px solid rgba(255,255,255,.18);
-  border-radius:8px;
+  width:36px;height:34px;
+  background:rgba(0,0,0,.65);
+  border:1px solid rgba(255,255,255,.15);
+  border-radius:6px;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  font-size:16px;position:relative;
+  font-size:14px;position:relative;
   flex-shrink:0;
 }
 .weapon-slot.w-evolved{
   border-color:#f9ca24;
-  box-shadow:0 0 6px #f9ca2444;
+  box-shadow:0 0 5px #f9ca2444;
 }
 .weapon-slot.p-slot{
-  background:rgba(10,10,30,.65);
-  border-color:rgba(162,155,254,.25);
-  font-size:14px;
+  background:rgba(0,0,20,.60);
+  border-color:rgba(162,155,254,.22);
+  font-size:12px;
 }
 .weapon-lvl{
-  position:absolute;bottom:1px;right:3px;
-  font-size:7px;color:#f9ca24;font-weight:bold;line-height:1;
+  position:absolute;bottom:1px;right:2px;
+  font-size:6px;color:#f9ca24;font-weight:bold;line-height:1;
 }
 .weapon-slot span{
-  font-size:7px;color:rgba(255,255,255,.6);margin-top:1px;
-  line-height:1;text-align:center;max-width:42px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  display:none; /* 图标只显示emoji，不显示名字，保持紧凑 */
 }
 
 /* Virtual joystick area — 全屏底层，永远在最下面接收触摸 */
@@ -2251,6 +2250,7 @@ function spawnEnemy(typeId,x,y,overrides){
     fragDrop:def.fragDrop*bfd,
     moveType:def.moveType||'chase',
     x,y,alive:true,flashTimer:0,
+    breathOffset:rng(0,TAU), // 呼吸动画随机相位，避免所有怪同步
     // 精英特有
     isElite:overrides?.isElite||false,
     glowColor:overrides?.glowColor||null,
@@ -3478,6 +3478,16 @@ const TILE_SIZE=80;
 // ── DRAW ENEMIES ──
 function drawEnemyBasic(e){
   ctx.save(); ctx.translate(e.x,e.y);
+
+  // 呼吸动画：轻微缩放，受伤时停止
+  if(e.flashTimer<=0){
+    // 普通怪慢呼吸(1.2Hz)，精英怪稍快(1.6Hz)
+    const breathHz = e.isElite ? 1.6 : 1.2;
+    const breathAmp = e.isElite ? 0.06 : 0.04; // 精英呼吸幅度更大
+    const bs = 1.0 + Math.sin(shockRingTime * breathHz * TAU + e.breathOffset) * breathAmp;
+    ctx.scale(bs, bs);
+  }
+
   // 精英怪发光光晕
   if(e.isElite && e.glowColor){
     const pulse=0.5+Math.sin(shockRingTime*4+e.uid)*0.5;
@@ -3519,6 +3529,11 @@ function drawEnemyBasic(e){
 }
 function drawBoss(e){
   ctx.save(); ctx.translate(e.x,e.y);
+  // Boss呼吸：幅度更大，更有压迫感
+  if(e.flashTimer<=0){
+    const bs=1.0+Math.sin(shockRingTime*1.8*TAU+(e.breathOffset||0))*0.07;
+    ctx.scale(bs,bs);
+  }
   // Boss光晕
   const bColor=e.isReaper?'#2d3436':'#fd79a8';
   const gl=ctx.createRadialGradient(0,0,e.r*.5,0,0,e.r*2.5);

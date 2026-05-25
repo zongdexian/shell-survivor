@@ -1699,25 +1699,11 @@ function getDiffScale(t){
   };
 }
 function getMissionMult(){return{normal:{hp:1,dmg:1},hard:{hp:1.6,dmg:1.4},boss:{hp:2.2,dmg:1.8}}[currentMission];}
-// 各类型怪物的感知范围（世界坐标像素）
-// aggroRange: 玩家进入此范围才开始追击
-// leashRange: 追击后玩家超出此范围则放弃追击回到游荡
-const ENEMY_AGGRO = {
-  grunt:   { aggroRange: 200, leashRange: 350, roamRadius: 130 },
-  fast:    { aggroRange: 240, leashRange: 400, roamRadius: 160 },
-  tank:    { aggroRange: 160, leashRange: 300, roamRadius:  90 },
-  shooter: { aggroRange: 280, leashRange: 450, roamRadius: 120 },
-  elite:   { aggroRange: 320, leashRange: 520, roamRadius: 100 },
-  boss:    { aggroRange: 9999,leashRange: 9999, roamRadius: 200 }, // Boss 始终追击
-};
-
 function spawnEnemy(typeId,x,y){
   if(enemies.length>=MAX_ENEMIES) return;
   const def=ENEMY_TYPES[typeId], sc=getDiffScale(gameTime), mm=getMissionMult();
   const bfd=save.shopPurchased['bossDropMore']&&def.isBoss?2:1;
-  const aggro = ENEMY_AGGRO[typeId] || ENEMY_AGGRO.grunt;
-  enemies.push({
-    typeId,uid:++_uid,name:def.typeId,r:def.r,
+  enemies.push({typeId,uid:++_uid,name:def.typeId,r:def.r,
     maxHp:def.hp*sc.hp*mm.hp, hp:def.hp*sc.hp*mm.hp,
     speed:def.speed*sc.spd, color:def.color, c2:def.c2,
     xp:def.xp, dmg:def.dmg*sc.dmg*mm.dmg,
@@ -1725,14 +1711,6 @@ function spawnEnemy(typeId,x,y){
     shootRate:def.shootRate||0, shootCooldown:0,
     fragDrop:def.fragDrop*bfd,
     x,y,alive:true,flashTimer:0,
-    // AI 状态
-    aiState: 'roam',          // 'roam' | 'chase'
-    spawnX: x, spawnY: y,     // 出生点（游荡中心）
-    roamX: x, roamY: y,       // 当前游荡目标点
-    roamTimer: rng(0, 2),     // 换目标的倒计时
-    aggroRange: aggro.aggroRange,
-    leashRange: aggro.leashRange,
-    roamRadius: aggro.roamRadius,
   });
 }
 
@@ -2382,83 +2360,31 @@ function updateEnemies(delta){
     const e=enemies[i];
     if(!e.alive){enemies.splice(i,1);continue;}
     if(e.flashTimer>0) e.flashTimer-=delta;
-
-    const pdx=player.x-e.x, pdy=player.y-e.y;
-    const pd=Math.hypot(pdx,pdy)||.001; // 到玩家的距离
-
-    // ── 状态切换 ──
-    if(e.aiState==='roam'){
-      // 被玩家子弹打中时也立即进入追击（flashTimer 被设置说明刚受伤）
-      if(pd < e.aggroRange || e.flashTimer > 0){
-        e.aiState = 'chase';
+    const dx=player.x-e.x, dy=player.y-e.y, d=Math.hypot(dx,dy)||.001;
+    if(d>e.r+player.r+1){
+      let sx=0,sy=0;
+      const lo=Math.max(0,i-20), hi=Math.min(enemies.length-1,i+20);
+      for(let j=lo;j<=hi;j++){
+        if(j===i||!enemies[j].alive) continue;
+        const o=enemies[j], od=dist(e,o), ms=(e.r+o.r)*1.4;
+        if(od<ms&&od>.01){const inv=(ms-od)/ms;sx+=(e.x-o.x)/od*inv;sy+=(e.y-o.y)/od*inv;}
       }
-    } else { // chase
-      // 玩家跑出牵引范围 → 回到游荡，并重置游荡中心为当前位置
-      if(pd > e.leashRange){
-        e.aiState = 'roam';
-        e.spawnX = e.x; e.spawnY = e.y;
-        e.roamX  = e.x; e.roamY  = e.y;
-        e.roamTimer = rng(1, 2.5);
-      }
+      const rx=dx/d+sx*.4, ry=dy/d+sy*.4, rm=Math.hypot(rx,ry)||1;
+      e.x=clamp(e.x+(rx/rm)*e.speed*delta,e.r,WORLD_W-e.r);
+      e.y=clamp(e.y+(ry/rm)*e.speed*delta,e.r,WORLD_H-e.r);
     }
-
-    // ── 分离推力（防止堆叠，两种状态都需要）──
-    let sx=0, sy=0;
-    const lo=Math.max(0,i-20), hi=Math.min(enemies.length-1,i+20);
-    for(let j=lo;j<=hi;j++){
-      if(j===i||!enemies[j].alive) continue;
-      const o=enemies[j], od=dist(e,o), ms=(e.r+o.r)*1.35;
-      if(od<ms&&od>.01){const inv=(ms-od)/ms;sx+=(e.x-o.x)/od*inv;sy+=(e.y-o.y)/od*inv;}
-    }
-
-    // ── 移动 ──
-    if(e.aiState==='chase'){
-      // 追击：直接向玩家移动
-      if(pd > e.r+player.r+1){
-        const rx=pdx/pd + sx*0.35, ry=pdy/pd + sy*0.35;
-        const rm=Math.hypot(rx,ry)||1;
-        e.x=clamp(e.x+(rx/rm)*e.speed*delta, e.r, WORLD_W-e.r);
-        e.y=clamp(e.y+(ry/rm)*e.speed*delta, e.r, WORLD_H-e.r);
-      }
-    } else {
-      // 游荡：向随机目标点慢速移动
-      e.roamTimer -= delta;
-      const rdx=e.roamX-e.x, rdy=e.roamY-e.y, rd=Math.hypot(rdx,rdy)||.001;
-
-      if(e.roamTimer<=0 || rd<8){
-        // 换一个游荡目标：在出生点附近随机选点
-        const ang=rng(0, TAU);
-        const radius=rng(20, e.roamRadius);
-        e.roamX = clamp(e.spawnX + Math.cos(ang)*radius, e.r+10, WORLD_W-e.r-10);
-        e.roamY = clamp(e.spawnY + Math.sin(ang)*radius, e.r+10, WORLD_H-e.r-10);
-        e.roamTimer = rng(1.5, 3.5);
-      }
-
-      // 游荡速度是追击速度的 40%，更慢更随意
-      const roamSpeed = e.speed * 0.4;
-      const rx=rdx/rd + sx*0.5, ry=rdy/rd + sy*0.5;
-      const rm=Math.hypot(rx,ry)||1;
-      e.x=clamp(e.x+(rx/rm)*roamSpeed*delta, e.r, WORLD_W-e.r);
-      e.y=clamp(e.y+(ry/rm)*roamSpeed*delta, e.r, WORLD_H-e.r);
-    }
-
-    // ── 接触伤害（两种状态都判断）──
-    if(pd < e.r+player.r+2) hurtPlayerContact(e.dmg*delta*3);
-
-    // ── 远程攻击（只在追击状态或射手感知到玩家时射击）──
+    // 所有怪物接触玩家都造成伤害（包括射手/boss）
+    if(d<e.r+player.r+2) hurtPlayerContact(e.dmg*delta*3);
     if(e.shootRate>0){
-      // 射手只在追击状态才开枪；Boss 始终开枪
-      const canShoot = e.aiState==='chase' || e.isBoss;
-      if(canShoot){
-        e.shootCooldown-=delta;
-        if(e.shootCooldown<=0){
-          e.shootCooldown=1/e.shootRate;
-          const ang=Math.atan2(pdy,pdx);
-          const bd={bulletSpeed:e.isBoss?180:145,damage:e.dmg*.6,range:e.isBoss?600:320,bulletColor:e.isBoss?'#fd79a8':'#fdcb6e',bulletR:e.isBoss?7:5,spread:e.isBoss?.08:.18,count:1};
-          spawnBullet(e.x,e.y,ang,bd,'enemy',null);
-          if(e.isBoss && wave>=40){spawnBullet(e.x,e.y,ang+.5,bd,'enemy',null);spawnBullet(e.x,e.y,ang-.5,bd,'enemy',null);}
-          else if(e.isBoss && wave>=20){spawnBullet(e.x,e.y,ang+.55,bd,'enemy',null);}
-        }
+      e.shootCooldown-=delta;
+      if(e.shootCooldown<=0){
+        e.shootCooldown=1/e.shootRate;
+        const ang=Math.atan2(dy,dx);
+        const bd={bulletSpeed:e.isBoss?180:145,damage:e.dmg*.6,range:e.isBoss?600:320,bulletColor:e.isBoss?'#fd79a8':'#fdcb6e',bulletR:e.isBoss?7:5,spread:e.isBoss?.08:.18,count:1};
+        spawnBullet(e.x,e.y,ang,bd,'enemy',null);
+        // BOSS多发弹幕：wave>=20时才加侧弹，wave>=40时三发
+        if(e.isBoss && wave>=40){spawnBullet(e.x,e.y,ang+.5,bd,'enemy',null);spawnBullet(e.x,e.y,ang-.5,bd,'enemy',null);}
+        else if(e.isBoss && wave>=20){spawnBullet(e.x,e.y,ang+.55,bd,'enemy',null);}
       }
     }
   }

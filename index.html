@@ -3591,20 +3591,52 @@ function updateBullets(delta){
     // 斧头重力
     if(b.isAxe){ b.vy += 520*delta; b.spinAngle=(b.spinAngle||0)+9*delta; }
 
-    // 回旋镖折返
+    // 回旋镖：独立处理位移+折返+消亡，不走通用逻辑
     if(b.isBoomerang){
       b.spinAngle=(b.spinAngle||0)+12*delta;
+      b._life=(b._life||0)+delta;
+
+      // 飞出 maxRange*0.5 后折返
       if(!b.returning && b.traveled>b.maxRange*0.5){
         b.returning=true;
-        b.hit.clear();
+        b.hit.clear(); // 折返后可重新命中
       }
+
       if(b.returning){
+        // 持续转向玩家，保持速度不衰减
         const ang=Math.atan2(player.y-b.y,player.x-b.x);
-        const spd=Math.hypot(b.vx,b.vy);
-        b.vx=lerp(b.vx,Math.cos(ang)*spd,8*delta);
-        b.vy=lerp(b.vy,Math.sin(ang)*spd,8*delta);
-        if(dist(b,player)<player.r+b.r){bullets.splice(i,1);continue;}
+        const curSpd=Math.max(Math.hypot(b.vx,b.vy), 280);
+        b.vx=lerp(b.vx,Math.cos(ang)*curSpd,12*delta);
+        b.vy=lerp(b.vy,Math.sin(ang)*curSpd,12*delta);
+        // 回到玩家身边→消失
+        if(dist(b,player)<player.r+b.r+8){bullets.splice(i,1);continue;}
       }
+
+      // 位移
+      b.x+=b.vx*delta; b.y+=b.vy*delta;
+      b.traveled+=Math.hypot(b.vx,b.vy)*delta;
+
+      // 超时强制消亡（8秒）
+      if(b._life>8){bullets.splice(i,1);continue;}
+
+      // 碰撞检测（直接在这里做，跳过下面通用逻辑）
+      for(let ti=torches.length-1;ti>=0;ti--){
+        const t=torches[ti];
+        if(!t.alive||b.hit.has('t'+ti)) continue;
+        if(dist(b,t)<b.r+t.r){ b.hit.add('t'+ti); smashTorch(t); }
+      }
+      for(let j=0;j<enemies.length;j++){
+        const e=enemies[j];
+        if(b.hit.has(e.uid)) continue;
+        if(dist(b,e)<b.r+e.r){
+          b.hit.add(e.uid);
+          dealDmg(e,b.damage);
+          spawnParticles(b.x,b.y,b.color,5,80,.3);
+          // 天堂之剑暴击粒子
+          if(b.color==='#f9ca24') spawnParticles(b.x,b.y,'#fff',3,60,.2);
+        }
+      }
+      continue; // 跳过下面通用位移/消亡/碰撞代码
     }
 
     b.x+=b.vx*delta; b.y+=b.vy*delta; b.traveled+=Math.hypot(b.vx,b.vy)*delta;

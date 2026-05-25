@@ -1616,9 +1616,9 @@ const WORLD_W=2400, WORLD_H=2400;
 let gState='play', gameTime=0, dt=0, lastTs=0, animFrame=0;
 let killCount=0, totalDmgDealt=0, runFragments=0, runBlueprints=[];
 let levelUpQueue=0, levelUpActive=false;
-const MISSION_DURATION=15*60; // fallback timer, 50波清完即胜利
-const MAX_WAVES=50;
-const BOSS_WAVES=[10,20,30,40,50]; // 每10波出BOSS
+const MISSION_DURATION=30*60; // 30分钟
+const MAX_WAVES=60;
+const BOSS_WAVES=[15,30,45,60]; // 每15波出BOSS
 let bossesDefeated=0;
 
 // BOSS战场竞技场
@@ -1769,36 +1769,108 @@ function spawnBullet(x,y,angle,def,owner,wi,overrideR){
   });
 }
 
+// ══════════════════════════════════════════════════
+//  怪物类型定义
+//  moveType: chase(追击) | swarm(围墙) | sweep(穿屏) | ranged(远程)
+// ══════════════════════════════════════════════════
 const ENEMY_TYPES={
-  grunt:  {typeId:'grunt',  r:6,  hp:30,  speed:36, color:'#e74c3c',c2:'#c0392b',xp:4, dmg:8, isMelee:true, fragDrop:0},
-  fast:   {typeId:'fast',   r:5,  hp:18,  speed:72, color:'#a29bfe',c2:'#6c5ce7',xp:3, dmg:6, isMelee:true, fragDrop:0},
-  tank:   {typeId:'tank',   r:11, hp:180, speed:21, color:'#636e72',c2:'#2d3436',xp:15,dmg:20,isMelee:true, fragDrop:1},
-  shooter:{typeId:'shooter',r:6,  hp:50,  speed:25, color:'#fdcb6e',c2:'#e17055',xp:8, dmg:12,isMelee:false,shootRate:0.55,fragDrop:1},
-  elite:  {typeId:'elite',  r:13, hp:400, speed:40, color:'#e17055',c2:'#d63031',xp:40,dmg:25,isMelee:true, fragDrop:3},
-  boss:   {typeId:'boss',   r:19, hp:1500,speed:27, color:'#fd79a8',c2:'#e84393',xp:150,dmg:35,isMelee:false,shootRate:0.9,isBoss:true,fragDrop:15},
+  // ── 普通小怪 ──
+  bat:    {typeId:'bat',    emoji:'🦇',r:5, hp:15, speed:80, color:'#6c5ce7',c2:'#4a3a9e',xp:3, dmg:6, isMelee:true, fragDrop:0, moveType:'chase'},
+  ghost:  {typeId:'ghost',  emoji:'👻',r:6, hp:20, speed:55, color:'#dfe6e9',c2:'#b2bec3',xp:4, dmg:7, isMelee:true, fragDrop:0, moveType:'chase', canPassWall:true},
+  zombie: {typeId:'zombie', emoji:'🧟',r:7, hp:40, speed:28, color:'#55efc4',c2:'#00b894',xp:5, dmg:9, isMelee:true, fragDrop:0, moveType:'chase'},
+  skeleton:{typeId:'skeleton',emoji:'💀',r:6,hp:30, speed:42, color:'#dfe6e9',c2:'#95a5a6',xp:4, dmg:8, isMelee:true, fragDrop:0, moveType:'chase'},
+  wolf:   {typeId:'wolf',   emoji:'🐺',r:7, hp:50, speed:65, color:'#636e72',c2:'#2d3436',xp:7, dmg:12,isMelee:true, fragDrop:0, moveType:'chase'},
+  // ── 远程攻击怪 ──
+  witch:  {typeId:'witch',  emoji:'🧙',r:7, hp:60, speed:28, color:'#a29bfe',c2:'#6c5ce7',xp:10,dmg:14,isMelee:false,shootRate:0.6, fragDrop:1, moveType:'ranged'},
+  dragon: {typeId:'dragon', emoji:'🐉',r:9, hp:100,speed:30, color:'#e17055',c2:'#d63031',xp:15,dmg:18,isMelee:false,shootRate:0.8, fragDrop:1, moveType:'ranged'},
+  // ── 围墙/阵型怪 ──
+  armor:  {typeId:'armor',  emoji:'⚔️',r:10,hp:120,speed:18, color:'#636e72',c2:'#2d3436',xp:12,dmg:16,isMelee:true, fragDrop:1, moveType:'swarm'},
+  flower: {typeId:'flower', emoji:'🌺',r:8, hp:80, speed:20, color:'#fd79a8',c2:'#e84393',xp:10,dmg:14,isMelee:false,shootRate:0.5, fragDrop:1, moveType:'swarm'},
+  // ── 穿屏横冲怪 ──
+  batswarm:{typeId:'batswarm',emoji:'🦇',r:5,hp:12,speed:160,color:'#6c5ce7',c2:'#4a3a9e',xp:2, dmg:5, isMelee:true, fragDrop:0, moveType:'sweep'},
+  medusa: {typeId:'medusa', emoji:'🐍',r:6, hp:25, speed:120,color:'#55efc4',c2:'#00b894',xp:4, dmg:8, isMelee:true, fragDrop:0, moveType:'sweep'},
+  // ── Boss ──
+  boss:   {typeId:'boss',   emoji:'👑',r:22,hp:3000,speed:30,color:'#fd79a8',c2:'#e84393',xp:200,dmg:40,isMelee:false,shootRate:1.0,isBoss:true,fragDrop:20,moveType:'chase'},
+  reaper: {typeId:'reaper', emoji:'💀',r:24,hp:99999999,speed:160,color:'#2d3436',c2:'#000',xp:0, dmg:9999,isMelee:true, fragDrop:0, isBoss:true, isReaper:true, moveType:'chase'},
 };
+
+// ── 精英怪时间表（游戏时间秒数触发）──
+const ELITE_SCHEDULE = [
+  {t:60,   name:'发光蝙蝠王',    emoji:'🦇', color:'#a29bfe', glowColor:'#9b59b6', scale:2.2, dropChest:true},
+  {t:180,  name:'发光巨型螳螂',  emoji:'🦗', color:'#00b894', glowColor:'#55efc4', scale:2.5, dropChest:true},
+  {t:300,  name:'发光铠甲幽灵',  emoji:'👻', color:'#dfe6e9', glowColor:'#74b9ff', scale:2.3, dropChest:true},
+  {t:540,  name:'发光巨型骷髅',  emoji:'💀', color:'#f9ca24', glowColor:'#f39c12', scale:2.4, dropChest:true},
+  {t:660,  name:'发光食尸鬼',    emoji:'🧟', color:'#2ecc71', glowColor:'#27ae60', scale:2.2, dropChest:true},
+  {t:780,  name:'发光花妖',      emoji:'🌺', color:'#fd79a8', glowColor:'#e84393', scale:2.3, dropChest:true},
+  {t:900,  name:'发光蝙蝠领主',  emoji:'🦇', color:'#6c5ce7', glowColor:'#a29bfe', scale:2.8, dropChest:true},
+  {t:1140, name:'发光牛头人',    emoji:'🐂', color:'#e17055', glowColor:'#d63031', scale:2.5, dropChest:true},
+  {t:1260, name:'发光双头飞龙',  emoji:'🐉', color:'#f39c12', glowColor:'#f9ca24', scale:2.6, dropChest:true},
+  {t:1380, name:'发光地狱犬',    emoji:'🐕', color:'#e74c3c', glowColor:'#c0392b', scale:2.4, dropChest:true},
+  {t:1500, name:'发光恶魔守卫',  emoji:'😈', color:'#9b59b6', glowColor:'#8e44ad', scale:2.7, dropChest:true},
+  {t:1680, name:'发光巨型死灵',  emoji:'💀', color:'#2d3436', glowColor:'#636e72', scale:3.0, dropChest:true},
+  {t:1740, name:'终极发光Boss·甲',emoji:'🐂',color:'#e74c3c', glowColor:'#ff0000', scale:3.2, dropChest:true},
+  {t:1770, name:'终极发光Boss·乙',emoji:'👾',color:'#9b59b6', glowColor:'#ff00ff', scale:3.2, dropChest:true},
+];
+let eliteScheduleIdx = 0; // 当前处理到第几个精英
 let enemies=[], _uid=0;
 function getDiffScale(t){
+  // 基于30分钟设计：前10分钟温和，中期加速，后期凶猛
+  const p=clamp(t/1800,0,1);
   return{
-    hp: .18+.82*Math.pow(clamp(t/60,0,1),1.6)+Math.max(0,(t-60)/60)*.45,
-    dmg:.15+.85*Math.pow(clamp(t/90,0,1),2.0)+Math.max(0,(t-90)/90)*.4,
-    spd:.7 +.3 *Math.pow(clamp(t/120,0,1),1.2),
+    hp:  0.15 + 0.85*Math.pow(p,1.4) + Math.max(0,(t-1200)/1200)*0.8,
+    dmg: 0.12 + 0.88*Math.pow(p,1.8) + Math.max(0,(t-1200)/1200)*0.5,
+    spd: 0.65 + 0.35*Math.pow(p,1.0),
   };
 }
-function getMissionMult(){return{normal:{hp:1,dmg:1},hard:{hp:1.6,dmg:1.4},boss:{hp:2.2,dmg:1.8}}[currentMission];}
-function spawnEnemy(typeId,x,y){
-  if(enemies.length>=MAX_ENEMIES) return;
-  const def=ENEMY_TYPES[typeId], sc=getDiffScale(gameTime), mm=getMissionMult();
+function getMissionMult(){return{normal:{hp:1,dmg:1},hard:{hp:1.7,dmg:1.5},boss:{hp:2.5,dmg:2.0}}[currentMission];}
+
+function spawnEnemy(typeId,x,y,overrides){
+  if(enemies.length>=MAX_ENEMIES) return null;
+  const def=ENEMY_TYPES[typeId]||ENEMY_TYPES.zombie;
+  const sc=getDiffScale(gameTime), mm=getMissionMult();
   const bfd=save.shopPurchased['bossDropMore']&&def.isBoss?2:1;
-  enemies.push({typeId,uid:++_uid,name:def.typeId,r:def.r,
-    maxHp:def.hp*sc.hp*mm.hp, hp:def.hp*sc.hp*mm.hp,
-    speed:def.speed*sc.spd, color:def.color, c2:def.c2,
-    xp:def.xp, dmg:def.dmg*sc.dmg*mm.dmg,
-    isMelee:def.isMelee, isBoss:def.isBoss||false,
-    shootRate:def.shootRate||0, shootCooldown:0,
+  const scale=overrides?.scale||1;
+  const e={
+    typeId, uid:++_uid, name:overrides?.name||def.typeId,
+    emoji:def.emoji||'👾',
+    r:def.r*scale,
+    maxHp:def.hp*sc.hp*mm.hp*(scale*scale), hp:def.hp*sc.hp*mm.hp*(scale*scale),
+    speed:def.speed*sc.spd*(1/Math.sqrt(scale)),
+    color:overrides?.color||def.color, c2:def.c2,
+    xp:def.xp*scale, dmg:def.dmg*sc.dmg*mm.dmg,
+    isMelee:def.isMelee, isBoss:def.isBoss||false, isReaper:def.isReaper||false,
+    shootRate:def.shootRate||0, shootCooldown:rng(0,1),
     fragDrop:def.fragDrop*bfd,
+    moveType:def.moveType||'chase',
     x,y,alive:true,flashTimer:0,
+    // 精英特有
+    isElite:overrides?.isElite||false,
+    glowColor:overrides?.glowColor||null,
+    dropChest:overrides?.dropChest||false,
+    // 穿屏怪的固定方向
+    sweepVx:overrides?.sweepVx||0, sweepVy:overrides?.sweepVy||0,
+  };
+  enemies.push(e);
+  return e;
+}
+
+// 精英怪生成
+function spawnElite(schedule){
+  const a=rng(0,TAU), d=Math.max(CW,CH)*0.9+80;
+  const ex=clamp(player.x+Math.cos(a)*d,80,WORLD_W-80);
+  const ey=clamp(player.y+Math.sin(a)*d,80,WORLD_H-80);
+  // 选择一个强壮的基础类型
+  const baseType=['armor','dragon','wolf','witch'][rngI(0,3)];
+  const e=spawnEnemy(baseType,ex,ey,{
+    name:schedule.name, scale:schedule.scale,
+    color:schedule.color, glowColor:schedule.glowColor,
+    isElite:true, dropChest:schedule.dropChest,
   });
+  if(e){
+    // 播报精英出现
+    showWaveAnnounce(0, `⚠️ ${schedule.name} 来袭！`);
+    Audio.bossAppear();
+  }
 }
 
 // ---------- Boss 掉落道具 ----------
@@ -1911,6 +1983,87 @@ function updateBlueprintPickups(delta){
 
 let shockwaves=[];
 function spawnShockwave(x,y,maxR,color){shockwaves.push({x,y,r:0,maxR,color,life:.45,maxLife:.45});}
+
+// ════════════════════════════════════════════════════
+//  宝箱系统
+// ════════════════════════════════════════════════════
+let chestDrops=[]; // [{x,y,r,bobTime,spinAngle,glowPhase}]
+let chestRoulette=null; // 当前轮盘抽奖状态
+
+function spawnChest(x,y){
+  chestDrops.push({x,y,r:16,bobTime:rng(0,TAU),spinAngle:0,glowPhase:rng(0,TAU)});
+}
+
+function updateChestDrops(delta){
+  for(let i=chestDrops.length-1;i>=0;i--){
+    const c=chestDrops[i];
+    c.bobTime+=delta*2; c.spinAngle+=delta*1.5; c.glowPhase+=delta*3;
+    const dd=dist(player,c);
+    if(dd<player.pickupRange+c.r){
+      const ang=Math.atan2(player.y-c.y,player.x-c.x);
+      c.x+=Math.cos(ang)*240*delta; c.y+=Math.sin(ang)*240*delta;
+    }
+    if(dist(player,c)<player.r+c.r){
+      chestDrops.splice(i,1);
+      Audio.pickup();
+      openChest();
+    }
+  }
+}
+
+// 决定宝箱等级（1/3/5连抽）
+function rollChestTier(){
+  const luck=playerStats.luck;
+  const r=Math.random();
+  if(r<0.05+luck*0.04) return 5; // 5连抽（神级）
+  if(r<0.20+luck*0.08) return 3; // 3连抽（大运）
+  return 1;                       // 1连抽（常规）
+}
+
+// 打开宝箱 → 开始轮盘动画
+function openChest(){
+  const tier=rollChestTier();
+  // 收集可升级的武器和被动
+  const upgradable=[];
+  player.weapons.forEach(w=>{
+    if(!w.evolved && w.level<MAX_WEAPON_LEVEL) upgradable.push({type:'weapon',weaponId:w.defId,name:WEAPON_DEFS[w.defId]?.name||w.defId,icon:WEAPON_DEFS[w.defId]?.icon||'⚔️'});
+  });
+  Object.keys(playerPassives).forEach(pid=>{
+    const def=PASSIVE_DEFS[pid]; if(!def) return;
+    if((playerPassives[pid]||0)<def.max) upgradable.push({type:'passive',passiveId:pid,name:def.name,icon:def.icon});
+  });
+  if(upgradable.length===0) return; // 没东西可升就跳过
+
+  // 随机选 tier 个不同目标
+  const picks=shuffle(upgradable).slice(0,tier);
+  chestRoulette={tier,picks,phase:'spin',spinTime:0,spinDuration:tier===5?3.5:tier===3?2.5:1.8,currentIdx:0,results:[]};
+  gState='roulette';
+}
+
+function updateRoulette(delta){
+  if(!chestRoulette||gState!=='roulette') return;
+  const r=chestRoulette;
+  r.spinTime+=delta;
+  if(r.spinTime>=r.spinDuration){
+    // 抽奖结束，应用所有升级
+    r.picks.forEach(pick=>{
+      if(pick.type==='weapon'){
+        const w=player.weapons.find(w2=>w2.defId===pick.weaponId);
+        if(w){ w.level=Math.min(w.level+1,MAX_WEAPON_LEVEL); w.bonusDmg+=(WEAPON_DEFS[pick.weaponId]?.damage||10)*0.20; w.bonusRate+=0.10; w.bonusRange+=18; }
+      } else if(pick.type==='passive'){
+        applyPassive(pick.passiveId);
+      }
+    });
+    syncBibleOrbs();
+    updateWeaponUI();
+    chestRoulette=null;
+    gState='play';
+    // 发射庆祝粒子
+    spawnParticles(player.x,player.y,'#f9ca24',30,220,.9);
+    spawnParticles(player.x,player.y,'#fff',20,160,.6);
+    if(r.tier>=3){ Audio.levelUp(); Audio.levelUp(); }
+  }
+}
 
 // ════════════════════════════════════════════════════════════
 //  特殊武器系统
@@ -2408,29 +2561,69 @@ const TILE_SIZE=80;
 // ── DRAW ENEMIES ──
 function drawEnemyBasic(e){
   ctx.save(); ctx.translate(e.x,e.y);
+  // 精英怪发光光晕
+  if(e.isElite && e.glowColor){
+    const pulse=0.5+Math.sin(shockRingTime*4+e.uid)*0.5;
+    const eg=ctx.createRadialGradient(0,0,0,0,0,e.r*2.8);
+    eg.addColorStop(0,e.glowColor+'aa'); eg.addColorStop(0.5,e.glowColor+'44'); eg.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(0,0,e.r*2.8*pulse,0,TAU);ctx.fillStyle=eg;ctx.fill();
+    // 发光边框
+    ctx.beginPath();ctx.arc(0,0,e.r+3,0,TAU);
+    ctx.strokeStyle=e.glowColor;ctx.lineWidth=2.5+Math.sin(shockRingTime*6)*1;ctx.stroke();
+  }
+  // 阴影
   ctx.beginPath(); ctx.ellipse(0,e.r*.65,e.r*.9,e.r*.28,0,0,TAU); ctx.fillStyle='rgba(0,0,0,.32)'; ctx.fill();
-  ctx.beginPath(); ctx.arc(0,0,e.r,0,TAU);
-  if(e.flashTimer>0){ctx.fillStyle='#fff';}
-  else{const g=ctx.createRadialGradient(-e.r*.3,-e.r*.3,0,0,0,e.r);g.addColorStop(0,e.color);g.addColorStop(1,e.c2);ctx.fillStyle=g;}
-  ctx.fill(); ctx.strokeStyle='#fff3'; ctx.lineWidth=1; ctx.stroke();
-  const bw=e.r*2.4,bh=4,pct=e.hp/e.maxHp;
-  ctx.fillStyle='#111'; ctx.fillRect(-bw/2,-e.r-9,bw,bh);
-  ctx.fillStyle=pct>.5?'#2ecc71':pct>.25?'#f39c12':'#e74c3c'; ctx.fillRect(-bw/2,-e.r-9,bw*pct,bh);
+  // 主体：emoji 或颜色圆形
+  if(e.emoji){
+    const sz=e.r*1.8;
+    if(e.flashTimer>0){
+      ctx.beginPath();ctx.arc(0,0,e.r,0,TAU);ctx.fillStyle='#fff';ctx.fill();
+    } else {
+      ctx.font=`${sz}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(e.emoji,0,sz*0.08);
+    }
+  } else {
+    ctx.beginPath(); ctx.arc(0,0,e.r,0,TAU);
+    if(e.flashTimer>0){ctx.fillStyle='#fff';}
+    else{const g=ctx.createRadialGradient(-e.r*.3,-e.r*.3,0,0,0,e.r);g.addColorStop(0,e.color);g.addColorStop(1,e.c2||e.color);ctx.fillStyle=g;}
+    ctx.fill(); ctx.strokeStyle='#fff3'; ctx.lineWidth=1; ctx.stroke();
+  }
+  // 血条
+  const bw=e.r*2.4,bh=e.isElite?5:3.5,pct=e.hp/e.maxHp;
+  const by=-e.r-(e.isElite?12:8);
+  ctx.fillStyle='#111'; ctx.beginPath();ctx.roundRect(-bw/2,by,bw,bh,2);ctx.fill();
+  ctx.fillStyle=pct>.5?'#2ecc71':pct>.25?'#f39c12':'#e74c3c'; ctx.beginPath();ctx.roundRect(-bw/2,by,bw*pct,bh,2);ctx.fill();
+  // 精英名字标签
+  if(e.isElite&&e.name){
+    ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.textBaseline='bottom';
+    ctx.fillStyle=e.glowColor||'#f9ca24';ctx.fillText(e.name,0,by-2);
+  }
   ctx.restore();
 }
 function drawBoss(e){
   ctx.save(); ctx.translate(e.x,e.y);
-  const gl=ctx.createRadialGradient(0,0,e.r*.5,0,0,e.r*2);
-  gl.addColorStop(0,'rgba(253,121,168,.18)'); gl.addColorStop(1,'transparent');
-  ctx.beginPath(); ctx.arc(0,0,e.r*2,0,TAU); ctx.fillStyle=gl; ctx.fill();
+  // Boss光晕
+  const bColor=e.isReaper?'#2d3436':'#fd79a8';
+  const gl=ctx.createRadialGradient(0,0,e.r*.5,0,0,e.r*2.5);
+  gl.addColorStop(0,bColor+'33'); gl.addColorStop(1,'transparent');
+  ctx.beginPath(); ctx.arc(0,0,e.r*2.5,0,TAU); ctx.fillStyle=gl; ctx.fill();
+  // Boss主体
   ctx.beginPath(); ctx.arc(0,0,e.r,0,TAU);
   if(e.flashTimer>0){ctx.fillStyle='#fff';}
+  else if(e.isReaper){ctx.fillStyle='#1a1a1a';}
   else{const g=ctx.createRadialGradient(-e.r*.3,-e.r*.3,0,0,0,e.r);g.addColorStop(0,'#fd79a8');g.addColorStop(1,'#c0392b');ctx.fillStyle=g;}
-  ctx.fill(); ctx.strokeStyle='#fff5'; ctx.lineWidth=2.5; ctx.stroke();
-  ctx.font=`${e.r*.85}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('👑',0,-e.r*.15);
-  const bw=e.r*2.8,bh=7,pct=e.hp/e.maxHp;
-  ctx.fillStyle='#111'; ctx.fillRect(-bw/2,-e.r-14,bw,bh);
-  ctx.fillStyle=pct>.5?'#fd79a8':pct>.25?'#e17055':'#e74c3c'; ctx.fillRect(-bw/2,-e.r-14,bw*pct,bh);
+  ctx.fill(); ctx.strokeStyle=e.isReaper?'#636e72':'#fff5'; ctx.lineWidth=2.5; ctx.stroke();
+  // emoji
+  const bEmoji=e.isReaper?'☠️':(e.emoji||'👑');
+  ctx.font=`${e.r*.9}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(bEmoji,0,-e.r*.1);
+  // 血条
+  const bw=e.r*3,bh=8,pct=e.hp/e.maxHp;
+  ctx.fillStyle='#111'; ctx.beginPath();ctx.roundRect(-bw/2,-e.r-18,bw,bh,3);ctx.fill();
+  ctx.fillStyle=pct>.5?'#fd79a8':pct>.25?'#e17055':'#e74c3c'; ctx.beginPath();ctx.roundRect(-bw/2,-e.r-18,bw*pct,bh,3);ctx.fill();
+  // 名字
+  ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillStyle=e.isReaper?'#636e72':'#fd79a8';
+  ctx.fillText(e.isReaper?'☠️死神':'👑BOSS',-0,-e.r-20);
   ctx.restore();
 }
 
@@ -2703,18 +2896,23 @@ function dealDmg(e,dmg){
      gainXP(e.xp); // 直接获得经验
      const gemAngle = rng(0, TAU); // 保留角度变量供后续掉落偏移使用
     if(e.isBoss){
-      bossesDefeated++;
-      Audio.bossKill();
-      spawnBossDrop(e.x, e.y);
-      // Boss 80%概率掉装备，必定掉1件，50%掉2件
-      spawnEquipDrop(e.x+rng(-20,20), e.y+rng(-20,20), true);
-      if(Math.random()<0.5) spawnEquipDrop(e.x+rng(-30,30), e.y+rng(-30,30), true);
-      if(arena.bossUid===e.uid){
-        arena.active=false;
-        arena.bossUid=-1;
-        arena.r=0;
-      }
-    }
+       bossesDefeated++;
+       Audio.bossKill();
+       spawnBossDrop(e.x, e.y);
+       spawnChest(e.x, e.y); // Boss 必定掉宝箱
+       spawnEquipDrop(e.x+rng(-20,20), e.y+rng(-20,20), true);
+       if(Math.random()<0.5) spawnEquipDrop(e.x+rng(-30,30), e.y+rng(-30,30), true);
+       if(arena.bossUid===e.uid){
+         arena.active=false;
+         arena.bossUid=-1;
+         arena.r=0;
+       }
+     }
+     // 精英怪掉宝箱
+     if(e.isElite && e.dropChest){
+       spawnChest(e.x, e.y);
+       spawnParticles(e.x,e.y,'#f9ca24',20,180,.7);
+     }
     const fd=e.fragDrop; // 碎片掉落量固定，不随关卡增加
     // 碎片：fragDrop>0才生成，与经验宝石相反方向偏移
     if(fd > 0){
@@ -2774,30 +2972,62 @@ function updateEnemies(delta){
     if(!e.alive){enemies.splice(i,1);continue;}
     if(e.flashTimer>0) e.flashTimer-=delta;
     const dx=player.x-e.x, dy=player.y-e.y, d=Math.hypot(dx,dy)||.001;
-    if(d>e.r+player.r+1){
-      let sx=0,sy=0;
-      const lo=Math.max(0,i-20), hi=Math.min(enemies.length-1,i+20);
-      for(let j=lo;j<=hi;j++){
-        if(j===i||!enemies[j].alive) continue;
-        const o=enemies[j], od=dist(e,o), ms=(e.r+o.r)*1.4;
-        if(od<ms&&od>.01){const inv=(ms-od)/ms;sx+=(e.x-o.x)/od*inv;sy+=(e.y-o.y)/od*inv;}
-      }
-      const rx=dx/d+sx*.4, ry=dy/d+sy*.4, rm=Math.hypot(rx,ry)||1;
-      e.x=clamp(e.x+(rx/rm)*e.speed*delta,e.r,WORLD_W-e.r);
-      e.y=clamp(e.y+(ry/rm)*e.speed*delta,e.r,WORLD_H-e.r);
+
+    // ── 分离推力 ──
+    let sx=0,sy=0;
+    const lo=Math.max(0,i-15), hi=Math.min(enemies.length-1,i+15);
+    for(let j=lo;j<=hi;j++){
+      if(j===i||!enemies[j].alive) continue;
+      const o=enemies[j], od=dist(e,o), ms=(e.r+o.r)*1.3;
+      if(od<ms&&od>.01){const inv=(ms-od)/ms;sx+=(e.x-o.x)/od*inv;sy+=(e.y-o.y)/od*inv;}
     }
-    // 所有怪物接触玩家都造成伤害（包括射手/boss）
+
+    // ── 移动逻辑（按类型）──
+    if(e.moveType==='sweep'){
+      // 穿屏怪：沿固定方向直线穿越
+      e.x+=e.sweepVx*delta; e.y+=e.sweepVy*delta;
+      // 出屏就消失
+      if(e.x<-50||e.x>WORLD_W+50||e.y<-50||e.y>WORLD_H+50){e.alive=false;continue;}
+    } else if(e.moveType==='ranged'){
+      // 远程怪：保持距离，停在玩家射程外开枪
+      const keepDist=220;
+      if(d>keepDist+20){
+        const rx=dx/d+sx*0.3, ry=dy/d+sy*0.3, rm=Math.hypot(rx,ry)||1;
+        e.x=clamp(e.x+(rx/rm)*e.speed*delta,e.r,WORLD_W-e.r);
+        e.y=clamp(e.y+(ry/rm)*e.speed*delta,e.r,WORLD_H-e.r);
+      } else if(d<keepDist-20){
+        // 太近了往后退
+        const rx=-dx/d+sx*0.3, ry=-dy/d+sy*0.3, rm=Math.hypot(rx,ry)||1;
+        e.x=clamp(e.x+(rx/rm)*e.speed*0.6*delta,e.r,WORLD_W-e.r);
+        e.y=clamp(e.y+(ry/rm)*e.speed*0.6*delta,e.r,WORLD_H-e.r);
+      }
+    } else {
+      // chase / swarm：追击玩家
+      if(d>e.r+player.r+1){
+        const rx=dx/d+sx*0.35, ry=dy/d+sy*0.35, rm=Math.hypot(rx,ry)||1;
+        e.x=clamp(e.x+(rx/rm)*e.speed*delta,e.r,WORLD_W-e.r);
+        e.y=clamp(e.y+(ry/rm)*e.speed*delta,e.r,WORLD_H-e.r);
+      }
+    }
+
+    // ── 接触伤害 ──
     if(d<e.r+player.r+2) hurtPlayerContact(e.dmg*delta*3);
+
+    // ── 远程射击 ──
     if(e.shootRate>0){
       e.shootCooldown-=delta;
       if(e.shootCooldown<=0){
         e.shootCooldown=1/e.shootRate;
         const ang=Math.atan2(dy,dx);
-        const bd={bulletSpeed:e.isBoss?180:145,damage:e.dmg*.6,range:e.isBoss?600:320,bulletColor:e.isBoss?'#fd79a8':'#fdcb6e',bulletR:e.isBoss?7:5,spread:e.isBoss?.08:.18,count:1};
+        const bSpd=e.isBoss?190:155;
+        const bR  =e.isBoss?8:e.isElite?7:5;
+        const bDmg=e.dmg*0.55;
+        const bRng=e.isBoss?650:350;
+        const bd={bulletSpeed:bSpd,damage:bDmg,range:bRng,bulletColor:e.isBoss?'#fd79a8':e.isElite?e.glowColor||'#e17055':'#fdcb6e',bulletR:bR,spread:e.isBoss?.07:.20,count:1,bulletSpeed:bSpd};
         spawnBullet(e.x,e.y,ang,bd,'enemy',null);
-        // BOSS多发弹幕：wave>=20时才加侧弹，wave>=40时三发
-        if(e.isBoss && wave>=40){spawnBullet(e.x,e.y,ang+.5,bd,'enemy',null);spawnBullet(e.x,e.y,ang-.5,bd,'enemy',null);}
-        else if(e.isBoss && wave>=20){spawnBullet(e.x,e.y,ang+.55,bd,'enemy',null);}
+        if(e.isBoss && gameTime>900){ spawnBullet(e.x,e.y,ang+.45,bd,'enemy',null); }
+        if(e.isBoss && gameTime>1800){ spawnBullet(e.x,e.y,ang-.45,bd,'enemy',null); }
+        if(e.isElite){ spawnBullet(e.x,e.y,ang+rng(-0.4,0.4),bd,'enemy',null); }
       }
     }
   }
@@ -2917,14 +3147,74 @@ function updateArena(delta){
   });
 }
 
+function getWavePool(){
+  const t=gameTime;
+  const p=['bat','bat','bat','ghost','zombie'];
+  if(t>120)  p.push('skeleton','skeleton');
+  if(t>300)  p.push('wolf');
+  if(t>600)  p.push('armor','witch');
+  if(t>900)  p.push('dragon','armor');
+  if(t>1200) p.push('wolf','witch','dragon');
+  if(currentMission==='hard') p.push('armor','witch');
+  if(currentMission==='boss') p.push('dragon','witch','wolf','armor');
+  return p;
+}
+function spawnWaveEnemy(){
+  const pool=getWavePool();
+  const type=pool[rngI(0,pool.length-1)];
+  const a=rng(0,TAU), d=Math.max(CW,CH)*.85+60;
+  spawnEnemy(type,clamp(player.x+Math.cos(a)*d,60,WORLD_W-60),clamp(player.y+Math.sin(a)*d,60,WORLD_H-60));
+}
+
+// 穿屏报刷新（每5分钟一次）
+let sweepTimer=0;
+function trySweepSpawn(){
+  sweepTimer+=1; // 每秒检查一次（在 updateSpawner 中用秒级调用）
+  // 每隔约300秒（5分钟）一次穿屏报
+  const interval=300;
+  if(Math.floor((gameTime-1)/interval)>Math.floor((gameTime-1-1)/interval)){
+    // 从屏幕一侧横穿
+    const side=rngI(0,3); // 0=左→右, 1=右→左, 2=上→下, 3=下→上
+    const count=12+wave*2;
+    for(let i=0;i<count;i++){
+      let x,y,vx=0,vy=0;
+      const spd=rng(120,180);
+      if(side===0){x=cam.x-CW/2-40; y=cam.y+rng(-CH/2,CH/2); vx=spd;}
+      else if(side===1){x=cam.x+CW/2+40; y=cam.y+rng(-CH/2,CH/2); vx=-spd;}
+      else if(side===2){x=cam.x+rng(-CW/2,CW/2); y=cam.y-CH/2-40; vy=spd;}
+      else{x=cam.x+rng(-CW/2,CW/2); y=cam.y+CH/2+40; vy=-spd;}
+      const e=spawnEnemy(rngI(0,1)?'batswarm':'medusa',x,y);
+      if(e){e.sweepVx=vx; e.sweepVy=vy;}
+    }
+  }
+}
+
 function updateSpawner(delta){
+  // 精英怪时间表
+  while(eliteScheduleIdx < ELITE_SCHEDULE.length && gameTime >= ELITE_SCHEDULE[eliteScheduleIdx].t){
+    spawnElite(ELITE_SCHEDULE[eliteScheduleIdx]);
+    eliteScheduleIdx++;
+  }
+
+  // 30分钟 → 死神登场
+  if(gameTime>=MISSION_DURATION-2 && !enemies.find(e=>e.isReaper)){
+    // 清空所有怪，刷死神
+    enemies.length=0;
+    const a=rng(0,TAU), d=280;
+    spawnEnemy('reaper',clamp(player.x+Math.cos(a)*d,80,WORLD_W-80),clamp(player.y+Math.sin(a)*d,80,WORLD_H-80));
+    showWaveAnnounce(0,'💀 死神降临！');
+    Audio.bossAppear();
+    return;
+  }
+  if(gameTime>=MISSION_DURATION){ endRun(true); return; }
+
   // boss阶段不刷普通怪
   if(!arena.active){
     spawnTimer-=delta;
     if(spawnTimer<=0){
       spawnTimer=getSpawnInterval();
-      const count=1+Math.floor(wave/8)+(currentMission==='hard'?1:currentMission==='boss'?2:0);
-      for(let i=0;i<count;i++) spawnWaveEnemy();
+      const count=1+Math.floor(gameTime/120)+(currentMission==='hard'?1:currentMission==='boss'?2:0);
+      for(let i=0;i<Math.min(count,4);i++) spawnWaveEnemy();
     }
   }
   // 波次计时
@@ -2932,18 +3222,11 @@ function updateSpawner(delta){
   const waveDur=getWaveDuration();
   if(waveTimer>=waveDur){
     waveTimer=0;
-    if(wave>=MAX_WAVES){
-      // 最后一波打完 → 胜利
-      endRun(true); return;
-    }
+    if(wave>=MAX_WAVES){ endRun(true); return; }
     wave++;
     document.getElementById('waveVal').textContent=wave;
-    player.hp=Math.min(player.maxHp,player.hp+12);
-    // 每10波出BOSS
-    if(BOSS_WAVES.includes(wave)){
-      spawnBoss();
-      Audio.bossAppear();
-    }
+    player.hp=Math.min(player.maxHp,player.hp+8);
+    if(BOSS_WAVES.includes(wave)){ spawnBoss(); Audio.bossAppear(); }
     showWaveAnnounce(wave);
   }
 }
@@ -3123,6 +3406,47 @@ function render(){
     ctx.font=`bold ${d.r*0.7}px monospace`; ctx.fillStyle='#fff';
     ctx.fillText(d.eq.name,0,d.r+9);
     ctx.restore();
+  });
+
+  // ── 宝箱渲染 ──
+  chestDrops.forEach(c=>{
+    const bob=Math.sin(c.bobTime)*4;
+    const pulse=0.6+Math.sin(c.glowPhase)*0.4;
+    ctx.save(); ctx.translate(c.x,c.y+bob);
+    // 外层金色光晕脉冲
+    const cg=ctx.createRadialGradient(0,0,0,0,0,c.r*3.5*pulse);
+    cg.addColorStop(0,'rgba(249,202,36,0.6)');
+    cg.addColorStop(0.5,'rgba(249,202,36,0.2)');
+    cg.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(0,0,c.r*3.5*pulse,0,TAU);ctx.fillStyle=cg;ctx.fill();
+    // 宝箱主体
+    ctx.rotate(Math.sin(c.spinAngle)*0.12); // 轻微左右晃
+    const bw=c.r*1.8,bh=c.r*1.4;
+    // 箱身
+    const bg2=ctx.createLinearGradient(-bw/2,-bh/2,bw/2,bh/2);
+    bg2.addColorStop(0,'#f9ca24'); bg2.addColorStop(1,'#c4960e');
+    ctx.fillStyle=bg2;
+    ctx.beginPath();ctx.roundRect(-bw/2,-bh/4,bw,bh*0.75,3);ctx.fill();
+    // 箱盖
+    const tg=ctx.createLinearGradient(-bw/2,-bh/2,bw/2,0);
+    tg.addColorStop(0,'#ffe082');tg.addColorStop(1,'#f9ca24');
+    ctx.fillStyle=tg;
+    ctx.beginPath();ctx.roundRect(-bw/2,-bh/2,bw,bh*0.35,3);ctx.fill();
+    // 金属扣
+    ctx.beginPath();ctx.arc(0,-bh*0.08,c.r*0.22,0,TAU);
+    ctx.fillStyle='#c4960e';ctx.fill();
+    ctx.beginPath();ctx.arc(0,-bh*0.08,c.r*0.12,0,TAU);
+    ctx.fillStyle='#f9ca24';ctx.fill();
+    // 光泽线
+    ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(-bw/2+4,-bh*0.3);ctx.lineTo(bw/2-4,-bh*0.3);ctx.stroke();
+    // ❓提示
+    ctx.font=`bold ${c.r}px monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle='#fff';ctx.fillText('?',0,bh*0.15);
+    ctx.restore();
+    // 上方文字提示
+    ctx.font='bold 11px monospace';ctx.textAlign='center';ctx.textBaseline='bottom';
+    ctx.fillStyle='#f9ca24';ctx.fillText('宝箱',c.x,c.y+bob-c.r*2);
   });
 
   // particles
@@ -3391,6 +3715,78 @@ function render(){
   }
   ctx.restore();
   drawMinimap();
+  drawRoulette();
+}
+
+function drawRoulette(){
+  if(!chestRoulette||gState!=='roulette') return;
+  const r=chestRoulette;
+  const progress=Math.min(1,r.spinTime/r.spinDuration);
+
+  // 半透明背景
+  ctx.fillStyle=`rgba(0,0,0,${0.7+progress*0.15})`;
+  ctx.fillRect(0,0,CW,CH);
+
+  // 标题
+  const tierLabel=r.tier===5?'🌟 神级宝箱！':r.tier===3?'✨ 大运宝箱！':'🎁 普通宝箱';
+  const tierColor=r.tier===5?'#f9ca24':r.tier===3?'#a29bfe':'#74b9ff';
+  ctx.font='bold 22px Courier New';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle=tierColor;ctx.fillText(tierLabel,CW/2,100);
+
+  // 轮盘格子
+  const cardW=100, cardH=70, gap=12;
+  const total=r.tier;
+  const startX=CW/2 - (total*(cardW+gap)-gap)/2;
+
+  r.picks.forEach((pick,idx)=>{
+    const cx=startX+idx*(cardW+gap)+cardW/2;
+    const cy=CH/2;
+    // 抖动动画（旋转快时）
+    const shake=(1-progress)*rng(-3,3);
+    const spinRot=(1-progress)*(Math.sin(shockRingTime*12+idx*2)*0.15);
+    ctx.save();
+    ctx.translate(cx+shake,cy);
+    ctx.rotate(spinRot);
+    // 卡片背景
+    const alpha=0.3+progress*0.7;
+    ctx.fillStyle=`rgba(20,20,40,${alpha})`;
+    ctx.strokeStyle=progress>0.9?tierColor:'rgba(255,255,255,0.3)';
+    ctx.lineWidth=progress>0.9?3:1.5;
+    ctx.beginPath();ctx.roundRect(-cardW/2,-cardH/2,cardW,cardH,10);ctx.fill();ctx.stroke();
+    // 图标
+    ctx.font=`${28}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+    if(progress>0.3){
+      ctx.fillText(pick.icon,0,-8);
+      ctx.font=`bold 10px Courier New`;ctx.fillStyle='#fff';
+      ctx.fillText(pick.name,0,18);
+    } else {
+      // 旋转中显示问号
+      ctx.font='bold 28px monospace';ctx.fillStyle='rgba(255,255,255,0.5)';
+      ctx.fillText('?',0,0);
+    }
+    // 进度完成后显示升级提示
+    if(progress>=1){
+      ctx.font='bold 11px monospace';ctx.fillStyle=tierColor;
+      ctx.fillText('↑ +1',0,30);
+    }
+    ctx.restore();
+  });
+
+  // 底部进度条
+  ctx.fillStyle='rgba(255,255,255,0.15)';
+  ctx.beginPath();ctx.roundRect(CW/2-100,CH-80,200,6,3);ctx.fill();
+  ctx.fillStyle=tierColor;
+  ctx.beginPath();ctx.roundRect(CW/2-100,CH-80,200*progress,6,3);ctx.fill();
+
+  // 提示文字
+  if(progress>=1){
+    ctx.font='bold 14px Courier New';ctx.textAlign='center';ctx.fillStyle='#fff';
+    ctx.fillText('✅ 升级完成！',CW/2,CH-55);
+  } else {
+    const dots='.'.repeat(Math.floor(shockRingTime*4)%4);
+    ctx.font='12px Courier New';ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,0.5)';
+    ctx.fillText(`抽奖中${dots}`,CW/2,CH-55);
+  }
 }
 
 function drawMinimap(){
@@ -3411,16 +3807,18 @@ function gameLoop(ts){
   if(!lastTs) lastTs=ts;
   dt=Math.min((ts-lastTs)/1000,.05); lastTs=ts;
 
-  if(gState==='play'){
-    gameTime+=dt;
-    updatePlayer(dt); updateWeapons(dt); updateBullets(dt);
-    shockRingTime+=dt;
-    updateBibleOrbs(dt); updateGarlicAura(dt); updateHolyWater(dt); updateLightning(dt); updateBirds(dt);
-    updateOrbitalSatellites(dt); updateDurianOrbs(dt); updateAxeProjectiles(dt);
-    updateEnemies(dt); updateGems(dt); updateFragPickups(dt);
-    updateParticles(dt); updateShockwaves(dt); updateArena(dt); updateBossDropItems(dt); updateBlueprintPickups(dt); updateEquipDrops(dt); updateSpawner(dt);
-    updateHUD();
-    if(gameTime>=MISSION_DURATION){endRun(true);return;}
+  if(gState==='play'||gState==='roulette'){
+    if(gState==='play'){
+      gameTime+=dt;
+      updatePlayer(dt); updateWeapons(dt); updateBullets(dt);
+      shockRingTime+=dt;
+      updateBibleOrbs(dt); updateGarlicAura(dt); updateHolyWater(dt); updateLightning(dt); updateBirds(dt);
+      updateOrbitalSatellites(dt); updateDurianOrbs(dt); updateAxeProjectiles(dt);
+      updateEnemies(dt); updateGems(dt); updateFragPickups(dt);
+      updateParticles(dt); updateShockwaves(dt); updateArena(dt); updateBossDropItems(dt); updateBlueprintPickups(dt); updateEquipDrops(dt); updateChestDrops(dt); updateSpawner(dt);
+      updateHUD();
+    }
+    if(gState==='roulette'){ updateRoulette(dt); shockRingTime+=dt; updateParticles(dt); }
   }
 
   // pause 时只渲染，保持循环（由 lastTs=0 防止恢复时 dt 跳变）
@@ -3439,8 +3837,8 @@ function gameLoop(ts){
 // ── START GAME ──
 function togglePause(){
   if(gState==='results') return;
-  // levelup 时不允许暂停，避免状态混乱
   if(gState==='levelup') return;
+  if(gState==='roulette') return; // 抽奖中不暂停
   if(gState==='play'){
     gState='pause';
     Audio.pauseBGM();
@@ -3479,6 +3877,7 @@ function startGame(){
   bibleOrbs=[]; bibleAngle=0; waterZones=[]; waterCooldown=0;
   lightningCooldown=0; lightningBolts=[]; birdBombs=[]; birdAngle=[0,Math.PI];
   birdCooldowns={peachone:0,ebonywings:0}; garlicAura={hitCooldowns:{},timer:0};
+  chestDrops=[]; chestRoulette=null; eliteScheduleIdx=0;
   // 重置被动属性
   playerPassives={};
   playerStats={might:1,cooldown:1,area:1,speed:1,duration:1,amount:0,regen:0,gold:1,xpGain:1,pickup:0,revive:0,luck:0,armor:0};

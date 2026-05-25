@@ -1611,7 +1611,12 @@ function shuffle(arr){const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=
 const MAX_BULLETS=350, MAX_PARTICLES=350, MAX_ENEMIES=180, MAX_GEMS=250;
 
 // World is wider than tall for a vertical canvas: 2400×2400
-const WORLD_W=2400, WORLD_H=2400;
+// 九宫格单元格大小（视口覆盖范围）
+// 玩家在一个 CELL×CELL 的循环地块上行走，超出即环绕
+const CELL_W = 1280;   // 约 3.3× 屏幕宽，确保视野内看不到边缘
+const CELL_H = 1280;
+// 世界坐标保持大数，但对 CELL_W/H 取模实现无限循环
+const WORLD_W=9999999, WORLD_H=9999999;  // 伪无限大，实际通过取模循环
 
 let gState='play', gameTime=0, dt=0, lastTs=0, animFrame=0;
 let killCount=0, totalDmgDealt=0, runFragments=0, runBlueprints=[];
@@ -2883,14 +2888,142 @@ function releaseJoystick(){
 _gameUI.addEventListener('touchend',    e=>{ e.preventDefault(); for(const t of e.changedTouches) if(t.identifier===joystick.touchId) releaseJoystick(); },{passive:false});
 _gameUI.addEventListener('touchcancel', e=>{ e.preventDefault(); releaseJoystick(); },{passive:false});
 
-// decorations
+// ════════════════════════════════════════════════════════════
+//  九宫格无限循环地图系统
+//  参考《吸血鬼幸存者》Tile Tiling 机制
+//  CELL_W×CELL_H 为一个单元格，玩家走出边界则重排装饰
+// ════════════════════════════════════════════════════════════
+
+// 单元格内装饰物模板（相对坐标，0~CELL_W/H）
+const decoTemplate = [];    // [{lx,ly,t,r,color}]  相对坐标
+// 单元格内树木碰撞体（用于怪物生成检测）
+const treeTemplate = [];    // [{lx,ly,r}]
+
+// 当前九宫格偏移（记录玩家走了几格）
+let cellOffX=0, cellOffY=0;
+
+// 实际渲染用的装饰列表（九宫格拼接后的绝对坐标）
 const decorations=[];
+
+// ── 4个固定坐标隐藏被动道具 ──
+// 原版：相对出生点的固定偏移，解锁向导地图后可见
+// 出生点 = player初始位置（startX,startY）
+let hiddenPassives = [];
+const HIDDEN_PASSIVE_DEFS = [
+  {dx:  0,  dy:-250, passiveId:'spinach',  icon:'🌿', name:'菠菜'},
+  {dx:  0,  dy: 250, passiveId:'armor',    icon:'🛡️',name:'护甲'},
+  {dx:-250, dy:  0,  passiveId:'emptytome',icon:'📕', name:'空之书'},
+  {dx: 250, dy:  0,  passiveId:'clover',   icon:'🍀', name:'幸运三叶草'},
+  {dx: 150, dy: 150, passiveId:'pummarola',icon:'❤️', name:'空虚之心'},
+];
+let hiddenPassivePickups = []; // 当前场景中的隐藏道具实体
+
 function genMap(){
-  const theme=getMapTheme();
-  decorations.length=0;
-  for(let i=0;i<200;i++){const t=rngI(0,2);decorations.push({x:rng(40,WORLD_W-40),y:rng(40,WORLD_H-40),t,r:t===0?rng(8,22):rng(5,14),color:theme.decoColors[0][rngI(0,3)]});}
-  for(let i=0;i<70;i++) decorations.push({x:rng(40,WORLD_W-40),y:rng(40,WORLD_H-40),t:3,r:rng(6,18),color:theme.decoColors[1]});
+  const theme = getMapTheme();
+
+  // ── 生成单元格装饰模板（随机，相对坐标）──
+  decoTemplate.length=0;
+  treeTemplate.length=0;
+  const decoCount = 120;
+  const treeCount = 45;
+  for(let i=0;i<decoCount;i++){
+    const t=rngI(0,2);
+    const r=t===0?rng(8,22):rng(5,14);
+    decoTemplate.push({
+      lx:rng(20,CELL_W-20), ly:rng(20,CELL_H-20),
+      t, r, color:theme.decoColors[0][rngI(0,3)]
+    });
+  }
+  // 树木（t=0 最大的那些作为碰撞体）
+  for(let i=0;i<treeCount;i++){
+    const lx=rng(30,CELL_W-30), ly=rng(30,CELL_H-30);
+    const r=rng(12,22);
+    decoTemplate.push({lx,ly,t:0,r,color:theme.decoColors[0][rngI(0,2)]});
+    treeTemplate.push({lx,ly,r});
+  }
+  // 草丛/石头
+  for(let i=0;i<40;i++){
+    decoTemplate.push({lx:rng(10,CELL_W-10),ly:rng(10,CELL_H-10),t:3,r:rng(6,18),color:theme.decoColors[1]});
+  }
+
+  // 初始化九宫格
+  rebuildDecorations();
+  initHiddenPassives();
   initTorches();
+}
+
+// 根据玩家当前位置重建装饰列表（九宫格拼接）
+function rebuildDecorations(){
+  decorations.length=0;
+  // 计算玩家所在格子的左上角
+  const ox = Math.floor(player.x / CELL_W) * CELL_W;
+  const oy = Math.floor(player.y / CELL_H) * CELL_H;
+  // 铺 3×3 九宫格
+  for(let gx=-1;gx<=1;gx++){
+    for(let gy=-1;gy<=1;gy++){
+      const bx = ox + gx*CELL_W;
+      const by = oy + gy*CELL_H;
+      decoTemplate.forEach(d=>{
+        decorations.push({x:bx+d.lx, y:by+d.ly, t:d.t, r:d.r, color:d.color});
+      });
+    }
+  }
+}
+
+// 每帧检测玩家是否越过格子边界 → 重排九宫格
+function updateTiling(){
+  const nx = Math.floor(player.x / CELL_W);
+  const ny = Math.floor(player.y / CELL_H);
+  if(nx!==cellOffX || ny!==cellOffY){
+    cellOffX=nx; cellOffY=ny;
+    rebuildDecorations();
+  }
+}
+
+// 初始化隐藏被动道具（相对出生点固定偏移）
+function initHiddenPassives(){
+  hiddenPassivePickups = [];
+  const sx=player.x||WORLD_W/2, sy=player.y||WORLD_H/2;
+  HIDDEN_PASSIVE_DEFS.forEach(def=>{
+    hiddenPassivePickups.push({
+      x: sx+def.dx, y: sy+def.dy,
+      def, r:14, bobTime:rng(0,TAU),
+      collected:false,
+    });
+  });
+}
+
+// 更新隐藏道具（拾取检测）
+function updateHiddenPassives(delta){
+  hiddenPassivePickups.forEach(h=>{
+    if(h.collected) return;
+    h.bobTime+=delta*2;
+    // 磁铁吸引
+    const dd=dist(player,h);
+    if(dd<player.pickupRange+h.r+20){
+      const ang=Math.atan2(player.y-h.y,player.x-h.x);
+      h.x+=Math.cos(ang)*200*delta; h.y+=Math.sin(ang)*200*delta;
+    }
+    if(dd<player.r+h.r+4){
+      h.collected=true;
+      applyPassive(h.def.passiveId);
+      Audio.pickup();
+      spawnParticles(h.x,h.y,'#f9ca24',18,180,.7);
+      spawnParticles(h.x,h.y,'#fff',10,120,.5);
+      spawnDmgText(h.x,h.y-30,`✨ ${h.def.name}！`,'#f9ca24');
+    }
+  });
+}
+
+// 检测坐标是否在树木碰撞区内（用于怪物生成过滤）
+function isInTree(wx,wy){
+  const ox = Math.floor(wx / CELL_W) * CELL_W;
+  const oy = Math.floor(wy / CELL_H) * CELL_H;
+  const lx = wx - ox, ly = wy - oy;
+  for(const t of treeTemplate){
+    if(Math.hypot(lx-t.lx,ly-t.ly)<t.r+8) return true;
+  }
+  return false;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -3214,8 +3347,9 @@ function updatePlayer(delta){
   player.vx=lerp(player.vx,dx*sp,14*delta);
   player.vy=lerp(player.vy,dy*sp,14*delta);
   if(Math.hypot(dx,dy)>.05) player.facing=Math.atan2(dy,dx);
-  player.x=clamp(player.x+player.vx*delta,player.r,WORLD_W-player.r);
-  player.y=clamp(player.y+player.vy*delta,player.r,WORLD_H-player.r);
+  player.x += player.vx*delta;
+  player.y += player.vy*delta;
+  // 无限循环：走出 CELL 边界时，怪物/装饰等会随之重置，玩家坐标持续累加
   if(player.hpRegen>0) player.hp=Math.min(player.maxHp,player.hp+player.hpRegen*delta);
   if(player.invincible>0) player.invincible-=delta;
   cam.x=lerp(cam.x,player.x,7*delta);
@@ -3786,8 +3920,19 @@ function getWavePool(){
 function spawnWaveEnemy(){
   const pool=getWavePool();
   const type=pool[rngI(0,pool.length-1)];
-  const a=rng(0,TAU), d=Math.max(CW,CH)*.85+60;
-  spawnEnemy(type,clamp(player.x+Math.cos(a)*d,60,WORLD_W-60),clamp(player.y+Math.sin(a)*d,60,WORLD_H-60));
+  // 尝试找一个不在树木内的刷新点（最多10次）
+  for(let attempt=0;attempt<10;attempt++){
+    const a=rng(0,TAU), d=Math.max(CW,CH)*.85+60;
+    const ex=player.x+Math.cos(a)*d;
+    const ey=player.y+Math.sin(a)*d;
+    if(!isInTree(ex,ey)){
+      spawnEnemy(type,ex,ey);
+      return;
+    }
+  }
+  // 10次都碰树就直接生成（不卡死）
+  const a2=rng(0,TAU), d2=Math.max(CW,CH)*.85+60;
+  spawnEnemy(type,player.x+Math.cos(a2)*d2,player.y+Math.sin(a2)*d2);
 }
 
 // 穿屏报刷新（每5分钟一次）
@@ -3883,26 +4028,28 @@ function render(){
   ctx.save();
   ctx.translate(CW/2-cam.x, CH/2-cam.y);
 
-  // world bg
+  // ── 无限循环地图背景 ──
+  // 瓦片以像素坐标无限铺设，只绘制视野内的部分
   const mapTheme=getMapTheme();
-  ctx.fillStyle=mapTheme.bg; ctx.fillRect(0,0,WORLD_W,WORLD_H);
-  // tiles
-  const sx0=Math.max(0,Math.floor((cam.x-CW/2)/TILE_SIZE));
-  const sy0=Math.max(0,Math.floor((cam.y-CH/2)/TILE_SIZE));
-  const sx1=Math.min(WORLD_W/TILE_SIZE,Math.ceil((cam.x+CW/2)/TILE_SIZE));
-  const sy1=Math.min(WORLD_H/TILE_SIZE,Math.ceil((cam.y+CH/2)/TILE_SIZE));
-  for(let tx=sx0;tx<=sx1;tx++) for(let ty=sy0;ty<=sy1;ty++){
-    ctx.fillStyle=mapTheme.tiles[(tx+ty)%mapTheme.tiles.length];
+  const viewX0=cam.x-CW/2-TILE_SIZE, viewY0=cam.y-CH/2-TILE_SIZE;
+  const viewX1=cam.x+CW/2+TILE_SIZE, viewY1=cam.y+CH/2+TILE_SIZE;
+  const tx0=Math.floor(viewX0/TILE_SIZE), tx1=Math.ceil(viewX1/TILE_SIZE);
+  const ty0=Math.floor(viewY0/TILE_SIZE), ty1=Math.ceil(viewY1/TILE_SIZE);
+  for(let tx=tx0;tx<=tx1;tx++) for(let ty=ty0;ty<=ty1;ty++){
+    // 用坐标取模选颜色，实现无缝循环
+    const ci=((tx%4)+4)%4 + ((ty%4)+4)%4;
+    ctx.fillStyle=mapTheme.tiles[ci%mapTheme.tiles.length];
     ctx.fillRect(tx*TILE_SIZE,ty*TILE_SIZE,TILE_SIZE,TILE_SIZE);
   }
-  ctx.strokeStyle=mapTheme.border; ctx.lineWidth=5; ctx.strokeRect(2,2,WORLD_W-4,WORLD_H-4);
+  // Boss 竞技场有边界，其他模式无边界不画围墙
 
   // ── Boss竞技场 ──
   if(arena.active && arena.r>0){
     // 场外深色遮罩
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0,0,WORLD_W,WORLD_H);
+    // 以当前视野范围作为遮罩背景（避免引用WORLD_W/H）
+    ctx.rect(cam.x-CW*2, cam.y-CH*2, CW*4, CH*4);
     ctx.arc(arena.cx, arena.cy, arena.r, 0, TAU, true); // 反向切割
     ctx.fillStyle='rgba(0,0,0,0.55)';
     ctx.fill();
@@ -4003,6 +4150,34 @@ function render(){
       spawnParticles(ix,iy,'#74b9ff',2,40,.3);
     }
   }
+
+  // ── 隐藏被动道具渲染（固定坐标，发光待拾取）──
+  hiddenPassivePickups.forEach(h=>{
+    if(h.collected) return;
+    if(h.x<vx0||h.x>vx1||h.y<vy0||h.y>vy1) return;
+    const bob=Math.sin(h.bobTime)*4;
+    ctx.save(); ctx.translate(h.x, h.y+bob);
+    // 外层发光
+    const hg=ctx.createRadialGradient(0,0,0,0,0,h.r*3);
+    hg.addColorStop(0,'rgba(249,202,36,0.5)');
+    hg.addColorStop(0.5,'rgba(249,202,36,0.2)');
+    hg.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(0,0,h.r*3,0,TAU);ctx.fillStyle=hg;ctx.fill();
+    // 旋转光圈
+    ctx.rotate(h.bobTime*0.5);
+    ctx.strokeStyle='rgba(249,202,36,0.6)';ctx.lineWidth=2;
+    ctx.setLineDash([6,5]);
+    ctx.beginPath();ctx.arc(0,0,h.r*1.6,0,TAU);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.rotate(-h.bobTime*0.5);
+    // 图标
+    ctx.font='20px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(h.def.icon,0,1);
+    // 名称
+    ctx.font='bold 9px monospace';ctx.fillStyle='#f9ca24';
+    ctx.fillText(h.def.name,0,h.r+10);
+    ctx.restore();
+  });
 
   // frag pickups
   fragPickups.forEach(f=>{
@@ -4512,12 +4687,12 @@ function gameLoop(ts){
   if(gState==='play'||gState==='roulette'){
     if(gState==='play'){
       gameTime+=dt;
-      updatePlayer(dt); updateWeapons(dt); updateBullets(dt);
+      updatePlayer(dt); updateTiling(); updateWeapons(dt); updateBullets(dt);
       shockRingTime+=dt;
       updateBibleOrbs(dt); updateGarlicAura(dt); updateHolyWater(dt); updateLightning(dt); updateBirds(dt);
       updateOrbitalSatellites(dt); updateDurianOrbs(dt); updateAxeProjectiles(dt);
       updateEnemies(dt); updateGems(dt); updateFragPickups(dt);
-      updateParticles(dt); updateShockwaves(dt); updateArena(dt); updateBossDropItems(dt); updateBlueprintPickups(dt); updateEquipDrops(dt); updateChestDrops(dt); updateTorches(dt); updateSpawner(dt);
+      updateParticles(dt); updateShockwaves(dt); updateArena(dt); updateBossDropItems(dt); updateBlueprintPickups(dt); updateEquipDrops(dt); updateChestDrops(dt); updateTorches(dt); updateHiddenPassives(dt); updateSpawner(dt);
       updateHUD();
     }
     if(gState==='roulette'){ updateRoulette(dt); shockRingTime+=dt; updateParticles(dt); }
@@ -4591,8 +4766,13 @@ function startGame(){
 
   const b=getPermBonus();
   const eb=getEquipBonus(); // 装备加成
+  // 出生点：选一个在九宫格中央的整格位置
+  const spawnX = Math.round(CELL_W * 5.5); // 随机选第5.5格作为出生点，给足移动空间
+  const spawnY = Math.round(CELL_H * 5.5);
+  cellOffX = Math.floor(spawnX/CELL_W);
+  cellOffY = Math.floor(spawnY/CELL_H);
   Object.assign(player,{
-    x:WORLD_W/2,y:WORLD_H/2,vx:0,vy:0,
+    x:spawnX, y:spawnY, vx:0,vy:0,
     hp:100+b.maxHp+(eb.maxHp||0), maxHp:100+b.maxHp+(eb.maxHp||0), speed:85,
     xp:0,xpNext:6,level:1,invincible:0,facing:0,weapons:[],
     dmgMult:1+b.damage+(eb.damage||0),

@@ -1651,20 +1651,105 @@ const joystick={active:false,touchId:null,bx:0,by:0,dx:0,dy:0,magnitude:0,maxR:4
 //  武器类型：bullet(子弹) | orbit(环绕) | zone(范围) | throw(投掷)
 // ════════════════════════════════════════════════════════════
 const WEAPON_DEFS={
-  // ── 子弹类 ──
-  whip:   {id:'whip',   name:'鞭子',      icon:'🪱',type:'whip',   fireRate:.8,  damage:20, range:120, count:1, bulletColor:'#f39c12',bulletR:8, desc:'左右水平挥击，穿透敌人', evolveWith:'pummarola', evolveTo:'bloodytear'},
-  wand:   {id:'wand',   name:'魔杖',      icon:'🪄',type:'bullet', fireRate:1.4, damage:10, range:300, count:1, bulletColor:'#a29bfe',bulletR:5, spread:.04, bulletSpeed:400, desc:'自动发射魔法弹，瞄准最近敌人', evolveWith:'emptytome', evolveTo:'holywand'},
-  knife:  {id:'knife',  name:'小刀',      icon:'🔪',type:'bullet', fireRate:1.5, damage:12, range:350, count:1, bulletColor:'#dfe6e9',bulletR:4, spread:.02, bulletSpeed:500, desc:'朝移动方向快速发射飞刀', evolveWith:'bracer', evolveTo:'thousandedge'},
-  axe:    {id:'axe',    name:'斧头',      icon:'🪓',type:'axe',    fireRate:.6,  damage:50, range:400, count:1, bulletColor:'#636e72',bulletR:11,desc:'向上抛出，抛物线落下，高伤害', evolveWith:'candelabrador', evolveTo:'deathspiral'},
-  cross:  {id:'cross',  name:'十字架',    icon:'✝️',type:'boomerang',fireRate:.5, damage:35, range:280, count:1, bulletColor:'#fdcb6e',bulletR:8, bulletSpeed:320, desc:'扔向最近敌人，飞行后折返', evolveWith:'clover', evolveTo:'heavensword'},
-  bible:  {id:'bible',  name:'国王圣经',  icon:'📖',type:'orbit',  fireRate:0,   damage:25, range:90,  count:1, bulletColor:'#f9ca24',bulletR:14,desc:'环绕玩家旋转，形成防御圈', evolveWith:'spellbinder', evolveTo:'unholyvespers'},
-  firewand:{id:'firewand',name:'火焰魔杖',icon:'🔥',type:'bullet', fireRate:.4,  damage:70, range:350, count:1, bulletColor:'#e17055',bulletR:14,spread:.3,  bulletSpeed:260, desc:'随机向敌人发射高伤害火球', evolveWith:'spinach', evolveTo:'hellfire'},
-  garlic: {id:'garlic', name:'大蒜',      icon:'🧄',type:'aura',   fireRate:0,   damage:10, range:80,  count:1, bulletColor:'#fff',   bulletR:0, desc:'玩家周围永久伤害光环', evolveWith:'armor', evolveTo:'souleater'},
-  holywater:{id:'holywater',name:'圣水',  icon:'💧',type:'zone',   fireRate:.5,  damage:15, range:50,  count:1, bulletColor:'#74b9ff',bulletR:0, desc:'在地面砸出持续灼烧的火海', evolveWith:'attractorb', evolveTo:'laborra'},
-  runetracer:{id:'runetracer',name:'符文追踪器',icon:'🔮',type:'bullet',fireRate:.4,damage:30,range:99999,count:1,bulletColor:'#a29bfe',bulletR:7,spread:.02,bulletSpeed:380,pierce:999,desc:'穿透全屏，碰边缘反弹', evolveWith:'duplicator', evolveTo:'thunderloop'},
-  lightning:{id:'lightning',name:'闪电戒指',icon:'⚡',type:'lightning',fireRate:.7,damage:40,range:300,count:1,bulletColor:'#ffeaa7',bulletR:0,desc:'随机召唤闪电劈向敌人', evolveWith:'duplicator', evolveTo:'thunderloop'},
-  peachone:{id:'peachone',name:'和平鸽',  icon:'🕊️',type:'bird',  fireRate:0,   damage:20, range:160, count:1, bulletColor:'#fff',   bulletR:6, desc:'顺时针盘旋轰炸', evolveWith:'ebonywings', evolveTo:'vandalier'},
-  ebonywings:{id:'ebonywings',name:'乌鸦',icon:'🐦',type:'bird',  fireRate:0,   damage:20, range:160, count:1, bulletColor:'#2d3436',bulletR:6, desc:'逆时针盘旋轰炸', evolveWith:'peachone', evolveTo:'vandalier'},
+  // ─────────────────────────────────────────────────────────
+  //  基础武器（1级初始伤害已对齐原版数值）
+  //  fireRate = 每秒发射次数；damage = 单发基础伤害
+  // ─────────────────────────────────────────────────────────
+  // 鞭子：1级伤害15，左右扇形挥击穿透
+  whip:      {id:'whip',      name:'鞭子',      icon:'🪱',type:'whip',
+              fireRate:0.9,  damage:15,  range:140, count:1,
+              bulletColor:'#f39c12',bulletR:10,
+              desc:'左右水平挥击，穿透所有敌人',
+              evolveWith:'pummarola', evolveTo:'bloodytear'},
+
+  // 魔杖：1级伤害10，自动追踪，初始1发
+  wand:      {id:'wand',      name:'魔杖',      icon:'🪄',type:'bullet',
+              fireRate:1.4,  damage:10,  range:320, count:1,
+              bulletColor:'#a29bfe',bulletR:5, spread:.04, bulletSpeed:420,
+              desc:'自动发射魔法弹，瞄准最近敌人',
+              evolveWith:'emptytome', evolveTo:'holywand'},
+
+  // 小刀：1级伤害10，朝移动方向连发，高频
+  knife:     {id:'knife',     name:'小刀',      icon:'🔪',type:'bullet',
+              fireRate:1.8,  damage:10,  range:380, count:1,
+              bulletColor:'#dfe6e9',bulletR:4, spread:.02, bulletSpeed:540,
+              desc:'朝移动方向快速发射飞刀，靠频率堆DPS',
+              evolveWith:'bracer', evolveTo:'thousandedge'},
+
+  // 斧头：1级伤害40，抛物线，攻速慢
+  axe:       {id:'axe',       name:'斧头',      icon:'🪓',type:'axe',
+              fireRate:0.55, damage:40,  range:420, count:1,
+              bulletColor:'#636e72',bulletR:12,
+              desc:'向上抛出，抛物线落下，单发高伤害但攻速慢',
+              evolveWith:'candelabrador', evolveTo:'deathspiral'},
+
+  // 十字架：1级伤害25，回旋镖，去程+回程均伤害
+  cross:     {id:'cross',     name:'十字架',    icon:'✝️',type:'boomerang',
+              fireRate:0.5,  damage:25,  range:300, count:1,
+              bulletColor:'#fdcb6e',bulletR:9, bulletSpeed:340,
+              desc:'扔向最近敌人，飞到一定距离后折返，去回均伤',
+              evolveWith:'clover', evolveTo:'heavensword'},
+
+  // 国王圣经：1级伤害15，环绕旋转，带击退
+  bible:     {id:'bible',     name:'国王圣经',  icon:'📖',type:'orbit',
+              fireRate:0,    damage:15,  range:95,  count:1,
+              bulletColor:'#f9ca24',bulletR:15,
+              desc:'圣经在玩家周围旋转，形成防御圈，带微弱击退',
+              evolveWith:'spellbinder', evolveTo:'unholyvespers'},
+
+  // 火焰魔杖：1级伤害40，随机飞向屏幕内敌人，大弹体
+  firewand:  {id:'firewand',  name:'火焰魔杖',  icon:'🔥',type:'bullet',
+              fireRate:0.42, damage:40,  range:380, count:1,
+              bulletColor:'#e17055',bulletR:14, spread:.32, bulletSpeed:270,
+              desc:'随机朝屏幕内敌人发射高伤害火球',
+              evolveWith:'spinach', evolveTo:'hellfire'},
+
+  // 大蒜：1级伤害5，每0.5秒判定，主要清蝙蝠
+  garlic:    {id:'garlic',    name:'大蒜',      icon:'🧄',type:'aura',
+              fireRate:0,    damage:5,   range:85,  count:1,
+              bulletColor:'#fff',   bulletR:0,
+              desc:'永久伤害光环，0.5s判定一次，击退弱小敌人',
+              evolveWith:'armor', evolveTo:'souleater'},
+
+  // 圣水：1级伤害20，地面火海持续灼烧
+  holywater: {id:'holywater', name:'圣水',      icon:'💧',type:'zone',
+              fireRate:0.55, damage:20,  range:55,  count:1,
+              bulletColor:'#74b9ff',bulletR:0,
+              desc:'在地面砸出火海，每秒多次造成20点伤害',
+              evolveWith:'attractorb', evolveTo:'laborra'},
+
+  // 符文追踪器：1级伤害15，全屏穿透，碰边缘反弹
+  runetracer:{id:'runetracer',name:'符文追踪器',icon:'🔮',type:'bullet',
+              fireRate:0.45, damage:15,  range:99999,count:1,
+              bulletColor:'#a29bfe',bulletR:7, spread:.02, bulletSpeed:400, pierce:999,
+              desc:'穿透全屏，碰到边缘反弹，反弹伤害不衰减',
+              evolveWith:'duplicator', evolveTo:'thunderloop'},
+
+  // 闪电戒指：随机召唤闪电（不在原版13种基础武器内，保留）
+  lightning: {id:'lightning', name:'闪电戒指',  icon:'⚡',type:'lightning',
+              fireRate:0.7,  damage:40,  range:320, count:1,
+              bulletColor:'#ffeaa7',bulletR:0,
+              desc:'随机召唤闪电劈向屏幕内的敌人',
+              evolveWith:'duplicator', evolveTo:'thunderloop'},
+
+  // 法老之歌：1级伤害20，纵向巨大光柱，全穿透高频
+  mana:      {id:'mana',      name:'法老之歌',  icon:'🎵',type:'mana',
+              fireRate:1.2,  damage:20,  range:CH||844, count:1,
+              bulletColor:'#55efc4',bulletR:18,
+              desc:'纵向发射巨大光柱，全穿透高频打击',
+              evolveWith:'spellbinder', evolveTo:'mannajewel'},
+
+  // 和平鸽 / 乌鸦（互相进化为破坏者）
+  peachone:  {id:'peachone',  name:'和平鸽',    icon:'🕊️',type:'bird',
+              fireRate:0,    damage:20,  range:160, count:1,
+              bulletColor:'#fff',   bulletR:6,
+              desc:'顺时针盘旋轰炸',
+              evolveWith:'ebonywings', evolveTo:'vandalier'},
+  ebonywings:{id:'ebonywings',name:'乌鸦',      icon:'🐦',type:'bird',
+              fireRate:0,    damage:20,  range:160, count:1,
+              bulletColor:'#2d3436',bulletR:6,
+              desc:'逆时针盘旋轰炸',
+              evolveWith:'peachone', evolveTo:'vandalier'},
 };
 function createWeapon(id){return{defId:id,level:1,cooldown:0,bonusDmg:0,bonusRate:0,bonusRange:0,bonusR:0,bonusCount:0,evolved:false};}
 
@@ -1731,17 +1816,104 @@ function applyPassive(pid){
 
 // 超武合成配方（weapon + passive → evolvedId）
 const EVOLVE_RECIPES = {
-  bloodytear:     {weapon:'whip',      passive:'pummarola',  name:'血鞭',       icon:'🩸',desc:'范围扩大，暴击时吸血'},
-  holywand:       {weapon:'wand',      passive:'emptytome',  name:'圣魔杖',     icon:'✨',desc:'冷却归零，疯狂连射'},
-  thousandedge:   {weapon:'knife',     passive:'bracer',     name:'千刃',       icon:'🗡️',desc:'无限连发飞刀'},
-  deathspiral:    {weapon:'axe',       passive:'candelabrador',name:'死亡旋风', icon:'🌀',desc:'360°巨大镰刀全屏穿透'},
-  heavensword:    {weapon:'cross',     passive:'clover',     name:'天堂之剑',   icon:'⚔️',desc:'巨大飞剑，可造成暴击'},
-  unholyvespers:  {weapon:'bible',     passive:'spellbinder',name:'邪恶晚祷',   icon:'🌑',desc:'圣经永不消失'},
-  hellfire:       {weapon:'firewand',  passive:'spinach',    name:'地狱火',     icon:'💀',desc:'巨大流星火球，穿透敌人'},
-  souleater:      {weapon:'garlic',    passive:'armor',      name:'灵魂吞噬者', icon:'👁️',desc:'伤害圈扩大，吸取生命'},
-  laborra:        {weapon:'holywater', passive:'attractorb', name:'净罪圣水',   icon:'🌊',desc:'火海范围极大，追踪玩家'},
-  thunderloop:    {weapon:'lightning', passive:'duplicator', name:'雷电环带',   icon:'🌩️',desc:'落雷处二次引爆'},
-  vandalier:      {weapon:'peachone',  passive:'ebonywings', name:'破坏者',     icon:'🦚',desc:'彩虹鸟轰炸全屏'},
+  // 血鞭：鞭子+红心。基础伤害40，必定暴击(×2=80)，暴击时吸血
+  bloodytear:    {weapon:'whip',      passive:'pummarola',
+                  name:'血鞭',        icon:'🩸',
+                  damage:40,
+                  desc:'必定暴击(80伤害)，暴击吸血恢复HP',
+                  special:'crit2x_lifesteal'},
+
+  // 圣魔杖：魔杖+空之书。基础伤害30，冷却归零变加特林
+  holywand:      {weapon:'wand',      passive:'emptytome',
+                  name:'圣魔杖',      icon:'✨',
+                  damage:30,
+                  desc:'冷却归零，无限连射蓝色魔法弹',
+                  special:'zero_cooldown'},
+
+  // 千刃：小刀+护腕。基础伤害15，无限连发
+  thousandedge:  {weapon:'knife',     passive:'bracer',
+                  name:'千刃',        icon:'🗡️',
+                  damage:15,
+                  desc:'冷却归零，无限连发飞刀，移动即绞肉机',
+                  special:'zero_cooldown'},
+
+  // 死亡旋风：斧头+烛台。基础伤害60，360°穿透镰刀
+  deathspiral:   {weapon:'axe',       passive:'candelabrador',
+                  name:'死亡旋风',    icon:'🌀',
+                  damage:60,
+                  desc:'向四周360°发射巨大穿透镰刀，全屏清怪',
+                  special:'spiral_360'},
+
+  // 天堂之剑：十字架+幸运三叶草。基础伤害50，必定暴击×2
+  heavensword:   {weapon:'cross',     passive:'clover',
+                  name:'天堂之剑',    icon:'⚔️',
+                  damage:50,
+                  desc:'巨大飞剑折返，必定暴击(×2伤害)',
+                  special:'crit2x'},
+
+  // 邪恶晚祷：圣经+拼写器。圣经永不消失，持续覆盖
+  unholyvespers: {weapon:'bible',     passive:'spellbinder',
+                  name:'邪恶晚祷',    icon:'🌑',
+                  damage:35,
+                  desc:'圣经永不消失，形成不可逾越的绝对领域',
+                  special:'permanent_orbit'},
+
+  // 地狱火：火焰魔杖+菠菜。基础伤害80，穿透无限
+  hellfire:      {weapon:'firewand',  passive:'spinach',
+                  name:'地狱火',      icon:'💀',
+                  damage:80,
+                  desc:'巨大流星火球，穿透无限敌人，全游戏最高单发',
+                  special:'pierce_infinite'},
+
+  // 灵魂吞噬者：大蒜+护甲。基础伤害20，吸血，回血时+1伤害(最多+60)
+  souleater:     {weapon:'garlic',    passive:'armor',
+                  name:'灵魂吞噬者',  icon:'👁️',
+                  damage:20,
+                  desc:'伤害圈扩大，每60点回血永久+1伤害(上限+60)',
+                  special:'soul_stack'},
+
+  // 净罪圣水：圣水+吸引器。基础伤害30，火海追踪玩家
+  laborra:       {weapon:'holywater', passive:'attractorb',
+                  name:'净罪圣水',    icon:'🌊',
+                  damage:30,
+                  desc:'火海范围极大且追踪玩家，怪踩上DPS超凡',
+                  special:'tracking_zone'},
+
+  // 雷电环带：闪电+复制器。二次爆炸
+  thunderloop:   {weapon:'lightning', passive:'duplicator',
+                  name:'雷电环带',    icon:'🌩️',
+                  damage:60,
+                  desc:'落雷后0.4秒在原处再次引爆AOE',
+                  special:'double_explode'},
+
+  // 法老宝石：法老之歌+拼写器
+  mannajewel:    {weapon:'mana',      passive:'spellbinder',
+                  name:'法老宝石',    icon:'💎',
+                  damage:40,
+                  desc:'光柱持续时间翻倍，宽度×2，高频全穿透',
+                  special:'wide_pillar'},
+
+  // 破坏者：两只鸟满级合成，无需被动
+  vandalier:     {weapon:'peachone',  passive:'ebonywings',
+                  name:'破坏者',      icon:'🦚',
+                  damage:30,
+                  desc:'彩虹鸟全屏高频轰炸，合成后空出1个武器格',
+                  special:'fullscreen_bomb'},
+
+  // ── 特殊超武（终局级）──
+  // 无尽走廊：每转完一圈扣50%当前HP（对死神有效）
+  corridor:      {weapon:'knife',     passive:'bracer',
+                  name:'无尽走廊',    icon:'🌀',
+                  damage:0,
+                  desc:'冻结全屏后彩色光圈每圈扣除50%当前HP，无视血量',
+                  special:'half_hp', isUltimate:true},
+
+  // 绯红圣骸布：将受到的伤害×100反弹
+  shroud:        {weapon:'bible',     passive:'armor',
+                  name:'绯红圣骸布',  icon:'🩸',
+                  damage:0,
+                  desc:'受到伤害时将伤害×100反弹给攻击者',
+                  special:'damage_reflect', isUltimate:true},
 };
 
 let bullets=[];
@@ -2128,8 +2300,21 @@ function updateGarlicAura(delta){
     const e=enemies[j];
     if(garlicAura.hitCooldowns[e.uid]) continue;
     if(dist(player,e)<r+e.r){
-      dealDmg(e, dmg);
-      if(wi.evolved){ player.hp=Math.min(player.maxHp, player.hp+dmg*0.15); } // 灵魂吞噬者吸血
+      // 灵魂吞噬者：伤害加上叠加层数
+      const soulBonus = wi.evolved ? (wi._soulStack||0) : 0;
+      const finalDmg  = dmg + soulBonus;
+      dealDmg(e, finalDmg);
+      if(wi.evolved){
+        const healed = finalDmg * 0.15;
+        const prevHp = player.hp;
+        player.hp=Math.min(player.maxHp, player.hp+healed);
+        // 每回血60点永久+1伤害（上限+60）
+        wi._soulHealAccum = (wi._soulHealAccum||0) + (player.hp-prevHp);
+        while(wi._soulHealAccum>=60 && (wi._soulStack||0)<60){
+          wi._soulHealAccum-=60;
+          wi._soulStack=(wi._soulStack||0)+1;
+        }
+      }
       // 击退弱小敌人
       const ang=Math.atan2(e.y-player.y,e.x-player.x);
       e.x+=Math.cos(ang)*40; e.y+=Math.sin(ang)*40;
@@ -2417,14 +2602,25 @@ function pickUpgrades(n=3){
 
 function applyUpgrade(upg){
   if(upg.type==='super'){
-    // 超武进化
+    const recipe = EVOLVE_RECIPES[upg.evolveId];
     if(upg.evolveId==='vandalier'){
-      // 移除两只鸟，加入vandalier
       player.weapons = player.weapons.filter(w=>w.defId!=='peachone'&&w.defId!=='ebonywings');
-      player.weapons.push({...createWeapon('peachone'), defId:'vandalier', evolved:true, level:MAX_WEAPON_LEVEL});
+      player.weapons.push({...createWeapon('peachone'), defId:'vandalier', evolved:true, level:MAX_WEAPON_LEVEL, superSpec:recipe?.special});
     } else {
       const ex=player.weapons.find(w=>w.defId===upg.weaponId);
-      if(ex){ ex.evolved=true; ex.level=MAX_WEAPON_LEVEL+1; ex.bonusDmg+=ex.bonusDmg*0.5; }
+      if(ex){
+        ex.evolved=true;
+        ex.level=MAX_WEAPON_LEVEL+1;
+        ex.superSpec=recipe?.special||'';
+        // 进化后基础伤害按超武配方设定
+        if(recipe?.damage>0) ex.bonusDmg = recipe.damage - (WEAPON_DEFS[upg.weaponId]?.damage||0);
+        // 特殊：圣魔杖/千刃冷却归零
+        if(recipe?.special==='zero_cooldown') ex.bonusRate=999;
+        // 灵魂吞噬者：回血叠加计数器
+        if(recipe?.special==='soul_stack') ex._soulStack=0;
+        // 绯红圣骸布：标记反伤激活
+        if(recipe?.special==='damage_reflect') player._shroudActive=true;
+      }
     }
     spawnParticles(player.x,player.y,'#f9ca24',40,250,1.0);
     spawnParticles(player.x,player.y,'#fff',25,180,.7);
@@ -2437,8 +2633,8 @@ function applyUpgrade(upg){
       ex.bonusDmg  += base.damage * 0.20;
       ex.bonusRate += 0.10;
       ex.bonusRange+= 18;
-      // 专属
-      if(['bible','garlic','holywater','lightning','peachone','ebonywings'].includes(upg.weaponId))
+      // 专属升级逻辑
+      if(['bible','garlic','holywater','lightning','peachone','ebonywings','mana'].includes(upg.weaponId))
         ex.bonusCount=(ex.bonusCount||0)+1;
       else if(upg.weaponId==='cross') ex.bonusCount=(ex.bonusCount||0)+1;
       else if(upg.weaponId==='axe')   ex.bonusCount=(ex.bonusCount||0)+1;
@@ -2686,42 +2882,68 @@ function updateWeapons(delta){
 
     Audio.shoot(w.defId);
 
-    // ── 鞭子：左右水平挥击穿透 ──
+    // ── 鞭子 / 血鞭：左右水平挥击 ──
     if(def.type==='whip'){
-      const sign = [1,-1];
-      for(let s=0;s<sign.length;s++){
-        const wdef = {...def, bulletSpeed:0, damage:dmg, range:rng2, bulletR:bulletR*1.5, spread:0};
-        spawnBullet(player.x,player.y, s===0?0:Math.PI, wdef,'player',null,bulletR*1.5);
-        // 鞭子是近程挥击，把子弹速度设为极慢来模拟
+      // 血鞭：必定暴击×2，吸血
+      const isBloody = w.evolved && w.superSpec==='crit2x_lifesteal';
+      const whipDmg  = isBloody ? dmg*2 : dmg;
+      const whipColor= isBloody ? '#e74c3c' : w.evolved ? '#fd79a8' : '#f39c12';
+      const whipDef  = {...def, damage:whipDmg, bulletSpeed:300, bulletColor:whipColor, bulletR:bulletR*(isBloody?1.6:1.2)};
+      for(let i=0;i<count*(isBloody?2:1);i++){
+        spawnBullet(player.x,player.y, i%2===0?rng(-0.28,0.28):Math.PI+rng(-0.28,0.28), whipDef,'player',null,whipDef.bulletR);
       }
-      // 鞭子另起一套：产生一个短暂的扇形碰撞框
-      const whipDef={...def,damage:dmg,bulletSpeed:280,bulletColor:w.evolved?'#e74c3c':'#f39c12',bulletR:bulletR};
-      for(let i=0;i<count;i++){
-        spawnBullet(player.x,player.y,i%2===0?rng(-0.3,0.3):Math.PI+rng(-0.3,0.3),whipDef,'player',null,bulletR);
+      if(isBloody){ player.hp=Math.min(player.maxHp, player.hp+whipDmg*0.15); }
+      return;
+    }
+
+    // ── 法老之歌 / 法老宝石：纵向巨大光柱 ──
+    if(def.type==='mana'){
+      const pillarW  = (bulletR*(w.evolved&&w.superSpec==='wide_pillar'?3:1.2));
+      const pillarH  = (def.range+(w.bonusRange||0))*playerStats.area;
+      const manaColor= w.evolved ? '#f9ca24' : '#55efc4';
+      // 向上下各发射一条光柱（模拟竖向扫射）
+      for(let i=0;i<count+(w.bonusCount||0);i++){
+        const off=i*pillarW*0.8-((count+(w.bonusCount||0)-1)*pillarW*0.4);
+        spawnBulletCustom(player.x+off,player.y,-Math.PI/2, dmg, 1200, pillarH, pillarW, manaColor, 999, 0, w.evolved);
+        spawnBulletCustom(player.x+off,player.y, Math.PI/2, dmg, 1200, pillarH, pillarW, manaColor, 999, 0, w.evolved);
       }
       return;
     }
 
-    // ── 斧头：向上抛出，抛物线 ──
+    // ── 斧头 / 死亡旋风：普通→抛物线，进化→360°镰刀 ──
     if(def.type==='axe'){
-      for(let i=0;i<count;i++){
-        const off = count>1?(i/(count-1)-0.5)*0.5:0;
-        const ang = -Math.PI/2 + off + rng(-0.2,0.2);
-        const b={
-          x:player.x,y:player.y,
-          ox:player.x,oy:player.y,
-          vx:Math.cos(ang)*spd*0.9,
-          vy:Math.sin(ang)*spd*0.9,
-          r:bulletR, color:w.evolved?'#e74c3c':'#636e72',
-          damage:dmg*(w.evolved?1.8:1),
-          range:rng2, traveled:0,
-          owner:'player', aoe:w.evolved?80:0,
-          pierce:w.evolved?999:1,
-          hit:new Set(), trail:[],
-          isAxe:true, spinAngle:rng(0,TAU),
-          isLaser:false,isGrenade:false,isBouncer:false,
-        };
-        bullets.push(b);
+      if(w.evolved && w.superSpec==='spiral_360'){
+        // 死亡旋风：每次发射8把向四周
+        const spiralCount=8+(w.bonusCount||0);
+        for(let i=0;i<spiralCount;i++){
+          const ang=(TAU/spiralCount)*i;
+          const b={
+            x:player.x,y:player.y,ox:player.x,oy:player.y,
+            vx:Math.cos(ang)*spd*0.8, vy:Math.sin(ang)*spd*0.8,
+            r:bulletR*1.5, color:'#636e72',
+            damage:dmg, range:rng2, traveled:0,
+            owner:'player', aoe:0, pierce:999,
+            hit:new Set(), trail:[],
+            isAxe:true, spinAngle:rng(0,TAU),
+            isLaser:false, isGrenade:false, isBouncer:false,
+          };
+          bullets.push(b);
+        }
+      } else {
+        for(let i=0;i<count;i++){
+          const off = count>1?(i/(count-1)-0.5)*0.5:0;
+          const ang = -Math.PI/2 + off + rng(-0.2,0.2);
+          bullets.push({
+            x:player.x,y:player.y,ox:player.x,oy:player.y,
+            vx:Math.cos(ang)*spd*0.9, vy:Math.sin(ang)*spd*0.9,
+            r:bulletR, color:'#636e72',
+            damage:dmg, range:rng2, traveled:0,
+            owner:'player', aoe:0, pierce:1,
+            hit:new Set(), trail:[],
+            isAxe:true, spinAngle:rng(0,TAU),
+            isLaser:false, isGrenade:false, isBouncer:false,
+          });
+        }
       }
       return;
     }
@@ -2960,9 +3182,15 @@ function hurtPlayer(dmg){
 }
 function hurtPlayerContact(dmg){
   if(player.invincible>0) return;
-  const a=dmg*(1-player.armorPct); player.hp-=a; player.invincible=.18;
+  const actual=dmg*(1-player.armorPct);
+  player.hp-=actual; player.invincible=.18;
   spawnParticles(player.x,player.y,'#e74c3c',7,110,.38);
   cam.x+=rng(-4,4); cam.y+=rng(-4,4);
+  // 绯红圣骸布：反伤×100给最近的敌人
+  if(player._shroudActive && actual>0){
+    const nearest=findNearestTarget(player.x,player.y,300);
+    if(nearest){ dealDmg(nearest, actual*100); spawnParticles(player.x,player.y,'#e74c3c',12,160,.5); }
+  }
   if(player.hp<=0){player.hp=0;endRun(false);}
 }
 
@@ -3897,7 +4125,7 @@ function startGame(){
     hpRegen:b.regen+(eb.regen||0),
     pickupRange:40+b.pickupRange,
     armorPct:Math.min(0.85, b.armor+(eb.armor||0)),
-    extraShot:0,
+    extraShot:0, _shroudActive:false,
   });
   if(save.shopPurchased['extraHp50']){player.hp+=50;player.maxHp+=50;}
   if(save.shopPurchased['startWithGem']) player.pickupRange+=80;

@@ -1646,19 +1646,103 @@ const player={
 // ── Joystick state ──
 const joystick={active:false,touchId:null,bx:0,by:0,dx:0,dy:0,magnitude:0,maxR:45};
 
+// ════════════════════════════════════════════════════════════
+//  武器系统 — 参考《吸血鬼幸存者》重设计
+//  武器类型：bullet(子弹) | orbit(环绕) | zone(范围) | throw(投掷)
+// ════════════════════════════════════════════════════════════
 const WEAPON_DEFS={
-  pistol: {id:'pistol', name:'手枪',icon:'🔫',fireRate:1.2, bulletSpeed:380,damage:12,range:320,bulletColor:'#f9ca24',bulletR:4,spread:.06,count:1,desc:'快速单发'},
-  shotgun:{id:'shotgun',name:'霰弹',icon:'🔧',fireRate:.55, bulletSpeed:300,damage:18,range:220,bulletColor:'#e17055',bulletR:5,spread:0,   count:5, shotgunSpread:.36,desc:'扇射，子弹越升越多越大'},
-  grenade:{id:'grenade',name:'榴弹',icon:'💥',fireRate:.4,  bulletSpeed:220,damage:50,range:220,bulletColor:'#fd79a8',bulletR:8,spread:.12,count:1,aoe:75,desc:'AOE爆炸，升级增加数量'},
-  laser:  {id:'laser',  name:'激光',icon:'🔴',fireRate:.9,  bulletSpeed:640,damage:24,range:520,bulletColor:'#ff4757',bulletR:3,spread:.01,count:1,pierce:5,desc:'穿透激光，升级变粗'},
-  orbital:{id:'orbital',name:'电流光波',icon:'⚡',fireRate:0, bulletSpeed:0, damage:18,range:14, bulletColor:'#00d2ff',bulletR:2,spread:0,count:1,desc:'同心电流圆环，升级增加光波圈数',isOrbital:true},
-  bouncer:{id:'bouncer',name:'彩色弹球',icon:'🔮',fireRate:.6, bulletSpeed:340,damage:22,range:99999,bulletColor:'#ff6b9d',bulletR:7,spread:.05,count:1,desc:'反弹弹球，升级增加发射数量和伤害',isBouncer:true},
-  // 旋转榴莲：围绕玩家旋转的实体，有碰撞体积，持续伤害
-  durian: {id:'durian', name:'旋转榴莲',icon:'🌵',fireRate:0, bulletSpeed:0, damage:30,range:72, bulletColor:'#adff2f',bulletR:12,spread:0,count:1,desc:'围绕玩家旋转，升级增加数量',isDurian:true},
-  // 飞斧：向前方抛出，有抛物线轨迹，落地爆炸
-  axe:    {id:'axe',    name:'飞斧',    icon:'🪓',fireRate:.7, bulletSpeed:260,damage:45,range:380,bulletColor:'#cd853f',bulletR:10,spread:.1,count:2,desc:'抛物线飞行，升级增加数量',isAxe:true},
+  // ── 子弹类 ──
+  whip:   {id:'whip',   name:'鞭子',      icon:'🪱',type:'whip',   fireRate:.8,  damage:20, range:120, count:1, bulletColor:'#f39c12',bulletR:8, desc:'左右水平挥击，穿透敌人', evolveWith:'pummarola', evolveTo:'bloodytear'},
+  wand:   {id:'wand',   name:'魔杖',      icon:'🪄',type:'bullet', fireRate:1.4, damage:10, range:300, count:1, bulletColor:'#a29bfe',bulletR:5, spread:.04, bulletSpeed:400, desc:'自动发射魔法弹，瞄准最近敌人', evolveWith:'emptytome', evolveTo:'holywand'},
+  knife:  {id:'knife',  name:'小刀',      icon:'🔪',type:'bullet', fireRate:1.5, damage:12, range:350, count:1, bulletColor:'#dfe6e9',bulletR:4, spread:.02, bulletSpeed:500, desc:'朝移动方向快速发射飞刀', evolveWith:'bracer', evolveTo:'thousandedge'},
+  axe:    {id:'axe',    name:'斧头',      icon:'🪓',type:'axe',    fireRate:.6,  damage:50, range:400, count:1, bulletColor:'#636e72',bulletR:11,desc:'向上抛出，抛物线落下，高伤害', evolveWith:'candelabrador', evolveTo:'deathspiral'},
+  cross:  {id:'cross',  name:'十字架',    icon:'✝️',type:'boomerang',fireRate:.5, damage:35, range:280, count:1, bulletColor:'#fdcb6e',bulletR:8, bulletSpeed:320, desc:'扔向最近敌人，飞行后折返', evolveWith:'clover', evolveTo:'heavensword'},
+  bible:  {id:'bible',  name:'国王圣经',  icon:'📖',type:'orbit',  fireRate:0,   damage:25, range:90,  count:1, bulletColor:'#f9ca24',bulletR:14,desc:'环绕玩家旋转，形成防御圈', evolveWith:'spellbinder', evolveTo:'unholyvespers'},
+  firewand:{id:'firewand',name:'火焰魔杖',icon:'🔥',type:'bullet', fireRate:.4,  damage:70, range:350, count:1, bulletColor:'#e17055',bulletR:14,spread:.3,  bulletSpeed:260, desc:'随机向敌人发射高伤害火球', evolveWith:'spinach', evolveTo:'hellfire'},
+  garlic: {id:'garlic', name:'大蒜',      icon:'🧄',type:'aura',   fireRate:0,   damage:10, range:80,  count:1, bulletColor:'#fff',   bulletR:0, desc:'玩家周围永久伤害光环', evolveWith:'armor', evolveTo:'souleater'},
+  holywater:{id:'holywater',name:'圣水',  icon:'💧',type:'zone',   fireRate:.5,  damage:15, range:50,  count:1, bulletColor:'#74b9ff',bulletR:0, desc:'在地面砸出持续灼烧的火海', evolveWith:'attractorb', evolveTo:'laborra'},
+  runetracer:{id:'runetracer',name:'符文追踪器',icon:'🔮',type:'bullet',fireRate:.4,damage:30,range:99999,count:1,bulletColor:'#a29bfe',bulletR:7,spread:.02,bulletSpeed:380,pierce:999,desc:'穿透全屏，碰边缘反弹', evolveWith:'duplicator', evolveTo:'thunderloop'},
+  lightning:{id:'lightning',name:'闪电戒指',icon:'⚡',type:'lightning',fireRate:.7,damage:40,range:300,count:1,bulletColor:'#ffeaa7',bulletR:0,desc:'随机召唤闪电劈向敌人', evolveWith:'duplicator', evolveTo:'thunderloop'},
+  peachone:{id:'peachone',name:'和平鸽',  icon:'🕊️',type:'bird',  fireRate:0,   damage:20, range:160, count:1, bulletColor:'#fff',   bulletR:6, desc:'顺时针盘旋轰炸', evolveWith:'ebonywings', evolveTo:'vandalier'},
+  ebonywings:{id:'ebonywings',name:'乌鸦',icon:'🐦',type:'bird',  fireRate:0,   damage:20, range:160, count:1, bulletColor:'#2d3436',bulletR:6, desc:'逆时针盘旋轰炸', evolveWith:'peachone', evolveTo:'vandalier'},
 };
-function createWeapon(id){return{defId:id,level:1,cooldown:0,bonusDmg:0,bonusRate:0,bonusRange:0,bonusR:0,bonusCount:0};}
+function createWeapon(id){return{defId:id,level:1,cooldown:0,bonusDmg:0,bonusRate:0,bonusRange:0,bonusR:0,bonusCount:0,evolved:false};}
+
+// ════════════════════════════════════════════════════════════
+//  被动技能定义
+//  每种被动影响全局属性 playerStats
+// ════════════════════════════════════════════════════════════
+const PASSIVE_DEFS={
+  spinach:     {id:'spinach',     name:'菠菜',      icon:'🌿',desc:'所有武器伤害+10%（最高+50%）', max:5, stat:'might',      perLevel:0.10},
+  emptytome:   {id:'emptytome',   name:'空之书',    icon:'📕',desc:'武器冷却时间-8%（最高-40%）',  max:5, stat:'cooldown',   perLevel:-0.08},
+  armor:       {id:'armor',       name:'护甲',      icon:'🛡️',desc:'受到伤害减少8%',              max:5, stat:'armor',     perLevel:0.08},
+  candelabrador:{id:'candelabrador',name:'烛台',   icon:'🕯️',desc:'武器攻击范围+10%',             max:5, stat:'area',      perLevel:0.10},
+  bracer:      {id:'bracer',      name:'护腕',      icon:'🥊',desc:'弹道飞行速度+10%',            max:5, stat:'speed',     perLevel:0.10},
+  spellbinder: {id:'spellbinder', name:'拼写器',   icon:'📿',desc:'技能持续时间+10%',             max:5, stat:'duration',  perLevel:0.10},
+  duplicator:  {id:'duplicator',  name:'复制器',   icon:'📋',desc:'弹道武器发射数量+1',           max:4, stat:'amount',    perLevel:1},
+  pummarola:   {id:'pummarola',   name:'红心',      icon:'❤️',desc:'每秒自动回血+0.5',            max:5, stat:'regen',     perLevel:0.5},
+  stonemask:   {id:'stonemask',   name:'面具',      icon:'🎭',desc:'金币/碎片获取+20%',           max:3, stat:'gold',      perLevel:0.20},
+  crown:       {id:'crown',       name:'皇冠',      icon:'👑',desc:'经验获取+8%，升级更快',       max:5, stat:'xpGain',    perLevel:0.08},
+  attractorb:  {id:'attractorb',  name:'吸引器',   icon:'🧲',desc:'拾取范围+60',                 max:5, stat:'pickup',    perLevel:60},
+  tiramisu:    {id:'tiramisu',    name:'提拉米苏', icon:'🍰',desc:'获得复活机会（最多2次）',      max:2, stat:'revive',    perLevel:1},
+  clover:      {id:'clover',      name:'幸运三叶草',icon:'🍀',desc:'幸运+10%（提升暴击/宝箱率）',max:5, stat:'luck',      perLevel:0.10},
+};
+
+// 玩家战斗属性（被动技能修改这里）
+let playerStats = {
+  might:    1.0,   // 伤害倍率
+  cooldown: 1.0,   // 冷却时间倍率（<1更快）
+  area:     1.0,   // 范围倍率
+  speed:    1.0,   // 弹道速度倍率
+  duration: 1.0,   // 持续时间倍率
+  amount:   0,     // 额外弹数
+  regen:    0,     // 每秒回血
+  gold:     1.0,   // 金币倍率
+  xpGain:   1.0,   // 经验倍率
+  pickup:   0,     // 额外拾取范围
+  revive:   0,     // 复活次数
+  luck:     0,     // 幸运值
+  armor:    0,     // 护甲减伤
+};
+// 玩家已持有的被动 {id: level}
+let playerPassives = {};
+
+function applyPassive(pid){
+  const def = PASSIVE_DEFS[pid];
+  if(!def) return;
+  playerPassives[pid] = (playerPassives[pid]||0) + 1;
+  const lv = playerPassives[pid];
+  switch(def.stat){
+    case 'might':    playerStats.might    += def.perLevel; break;
+    case 'cooldown': playerStats.cooldown = Math.max(0.3, playerStats.cooldown + def.perLevel); break;
+    case 'area':     playerStats.area     += def.perLevel; break;
+    case 'speed':    playerStats.speed    += def.perLevel; break;
+    case 'duration': playerStats.duration += def.perLevel; break;
+    case 'amount':   playerStats.amount   += def.perLevel; break;
+    case 'regen':    playerStats.regen    += def.perLevel; player.hpRegen += def.perLevel; break;
+    case 'gold':     playerStats.gold     += def.perLevel; break;
+    case 'xpGain':   playerStats.xpGain   += def.perLevel; break;
+    case 'pickup':   playerStats.pickup   += def.perLevel; player.pickupRange += def.perLevel; break;
+    case 'revive':   playerStats.revive   += def.perLevel; break;
+    case 'luck':     playerStats.luck     += def.perLevel; break;
+    case 'armor':    playerStats.armor    += def.perLevel; player.armorPct = Math.min(0.75, player.armorPct + def.perLevel); break;
+  }
+}
+
+// 超武合成配方（weapon + passive → evolvedId）
+const EVOLVE_RECIPES = {
+  bloodytear:     {weapon:'whip',      passive:'pummarola',  name:'血鞭',       icon:'🩸',desc:'范围扩大，暴击时吸血'},
+  holywand:       {weapon:'wand',      passive:'emptytome',  name:'圣魔杖',     icon:'✨',desc:'冷却归零，疯狂连射'},
+  thousandedge:   {weapon:'knife',     passive:'bracer',     name:'千刃',       icon:'🗡️',desc:'无限连发飞刀'},
+  deathspiral:    {weapon:'axe',       passive:'candelabrador',name:'死亡旋风', icon:'🌀',desc:'360°巨大镰刀全屏穿透'},
+  heavensword:    {weapon:'cross',     passive:'clover',     name:'天堂之剑',   icon:'⚔️',desc:'巨大飞剑，可造成暴击'},
+  unholyvespers:  {weapon:'bible',     passive:'spellbinder',name:'邪恶晚祷',   icon:'🌑',desc:'圣经永不消失'},
+  hellfire:       {weapon:'firewand',  passive:'spinach',    name:'地狱火',     icon:'💀',desc:'巨大流星火球，穿透敌人'},
+  souleater:      {weapon:'garlic',    passive:'armor',      name:'灵魂吞噬者', icon:'👁️',desc:'伤害圈扩大，吸取生命'},
+  laborra:        {weapon:'holywater', passive:'attractorb', name:'净罪圣水',   icon:'🌊',desc:'火海范围极大，追踪玩家'},
+  thunderloop:    {weapon:'lightning', passive:'duplicator', name:'雷电环带',   icon:'🌩️',desc:'落雷处二次引爆'},
+  vandalier:      {weapon:'peachone',  passive:'ebonywings', name:'破坏者',     icon:'🦚',desc:'彩虹鸟轰炸全屏'},
+};
 
 let bullets=[];
 // 彩色弹球的颜色列表
@@ -1681,6 +1765,7 @@ function spawnBullet(x,y,angle,def,owner,wi,overrideR){
     traveled:0, owner, aoe, pierce, hit:new Set(), trail:[],
     isLaser:def.id==='laser', isGrenade:def.id==='grenade',
     isBouncer, bounceLeft: isBouncer?6:0,
+    isAxe:false, isBoomerang:false, spinAngle:0,
   });
 }
 
@@ -1827,73 +1912,210 @@ function updateBlueprintPickups(delta){
 let shockwaves=[];
 function spawnShockwave(x,y,maxR,color){shockwaves.push({x,y,r:0,maxR,color,life:.45,maxLife:.45});}
 
-// ── 电流光波系统 ──
-// 每圈光波是固定半径的同心圆环，Lv1=1圈，每升级+1圈
-// 圆环内的敌人持续受到电流伤害
-let orbitalSatellites=[];  // 复用变量名保持兼容，实际存储电流圆环数据
+// ════════════════════════════════════════════════════════════
+//  特殊武器系统
+// ════════════════════════════════════════════════════════════
 
-// 每圈光波的固定半径：第1圈=55，每圈+45
-const SHOCKRING_BASE_R = 55;
-const SHOCKRING_STEP_R = 45;
-function shockRingRadius(ringIndex){ return SHOCKRING_BASE_R + ringIndex * SHOCKRING_STEP_R; }
+// ── 全局计时器 ──
+let shockRingTime = 0; // 兼容旧渲染代码
 
-// 电流光波全局动画计时器
-let shockRingTime = 0;
+// ── 国王圣经/邪恶晚祷：环绕玩家旋转 ──
+let bibleOrbs = [];
+let bibleAngle = 0;
 
-function syncOrbitalSatellites(){
-  let wInst = player.weapons.find(w=>w.defId==='orbital');
-  if(!wInst){ orbitalSatellites=[]; return; }
-
-  // Lv1=1圈，每升级+1圈
-  const ringCount = wInst.level;
-  const totalDmg  = (WEAPON_DEFS.orbital.damage + wInst.bonusDmg) * player.dmgMult;
-
-  // 同步圈数（保留已有圆环的冷却状态）
-  while(orbitalSatellites.length < ringCount){
-    orbitalSatellites.push({ hitCooldowns:{}, flashTimer:0 });
-  }
-  orbitalSatellites.length = ringCount;
-
-  // 更新伤害
-  orbitalSatellites.forEach((ring,i)=>{
-    ring.r      = shockRingRadius(i);
-    ring.damage = totalDmg;
-    ring.width  = 10 + i*2; // 外圈略粗
-  });
+function syncBibleOrbs(){
+  const wi = player.weapons.find(w=>w.defId==='bible');
+  if(!wi){ bibleOrbs=[]; return; }
+  const count = 1 + (wi.bonusCount||0);
+  while(bibleOrbs.length < count) bibleOrbs.push({hitCooldowns:{}});
+  bibleOrbs.length = count;
 }
 
-function updateOrbitalSatellites(delta){
-  if(orbitalSatellites.length===0) return;
-  shockRingTime += delta;
+function updateBibleOrbs(delta){
+  const wi = player.weapons.find(w=>w.defId==='bible');
+  if(!wi||bibleOrbs.length===0) return;
+  const orbitR  = (90 + (wi.bonusRange||0)) * playerStats.area;
+  const orbitSpd= 2.0 * (wi.evolved ? 0 : 1) + (wi.evolved ? 0 : wi.bonusRate*0.1); // 进化后永驻不转
+  const dmg     = (WEAPON_DEFS.bible.damage + wi.bonusDmg) * player.dmgMult * playerStats.might;
+  if(!wi.evolved) bibleAngle += (2.0 + wi.level*0.15) * delta;
 
-  orbitalSatellites.forEach((ring,ri)=>{
-    if(ring.flashTimer>0) ring.flashTimer-=delta;
-    if(!ring.hitCooldowns) ring.hitCooldowns={};
-    // 冷却计时
-    for(const uid in ring.hitCooldowns){
-      ring.hitCooldowns[uid]-=delta;
-      if(ring.hitCooldowns[uid]<=0) delete ring.hitCooldowns[uid];
-    }
-    // 碰撞：检测敌人是否在圆环厚度内 (r ± width/2)
-    const inner = ring.r - ring.width * 0.5 - 6;
-    const outer = ring.r + ring.width * 0.5 + 6;
+  bibleOrbs.forEach((orb,i)=>{
+    const a = bibleAngle + (TAU/bibleOrbs.length)*i;
+    orb.x = player.x + Math.cos(a)*orbitR;
+    orb.y = player.y + Math.sin(a)*orbitR;
+    orb.r = (WEAPON_DEFS.bible.bulletR + (wi.bonusR||0)) * playerStats.area;
+    // 冷却
+    for(const uid in orb.hitCooldowns){ orb.hitCooldowns[uid]-=delta; if(orb.hitCooldowns[uid]<=0) delete orb.hitCooldowns[uid]; }
+    // 碰撞
     for(let j=0;j<enemies.length;j++){
       const e=enemies[j];
-      if(ring.hitCooldowns[e.uid]) continue;
-      const d=dist(player, e);
-      if(d >= inner - e.r && d <= outer + e.r){
-        dealDmg(e, ring.damage);
-        ring.hitCooldowns[e.uid] = 0.45;
-        ring.flashTimer = 0.12;
-        // 电弧粒子
-        const ang = Math.atan2(e.y-player.y, e.x-player.x);
-        const ex  = player.x + Math.cos(ang)*ring.r;
-        const ey  = player.y + Math.sin(ang)*ring.r;
-        spawnParticles(ex, ey, '#00d2ff', 6, 90, .28);
-        spawnParticles(ex, ey, '#ffffff', 3, 60, .15);
+      if(orb.hitCooldowns[e.uid]) continue;
+      if(dist(orb,e)<orb.r+e.r){
+        dealDmg(e, dmg * (wi.evolved?2.2:1));
+        orb.hitCooldowns[e.uid] = wi.evolved ? 0.3 : 0.5;
+        spawnParticles(orb.x,orb.y,'#f9ca24',5,80,.3);
       }
     }
   });
+}
+
+// ── 大蒜/灵魂吞噬者：永久光环 ──
+let garlicAura = {hitCooldowns:{}, timer:0};
+
+function updateGarlicAura(delta){
+  const wi = player.weapons.find(w=>w.defId==='garlic');
+  if(!wi) return;
+  const r   = (WEAPON_DEFS.garlic.range + (wi.bonusRange||0)) * playerStats.area;
+  const dmg = (WEAPON_DEFS.garlic.damage + wi.bonusDmg) * player.dmgMult * playerStats.might;
+  garlicAura.timer = (garlicAura.timer||0) + delta;
+
+  for(const uid in garlicAura.hitCooldowns){ garlicAura.hitCooldowns[uid]-=delta; if(garlicAura.hitCooldowns[uid]<=0) delete garlicAura.hitCooldowns[uid]; }
+
+  for(let j=0;j<enemies.length;j++){
+    const e=enemies[j];
+    if(garlicAura.hitCooldowns[e.uid]) continue;
+    if(dist(player,e)<r+e.r){
+      dealDmg(e, dmg);
+      if(wi.evolved){ player.hp=Math.min(player.maxHp, player.hp+dmg*0.15); } // 灵魂吞噬者吸血
+      // 击退弱小敌人
+      const ang=Math.atan2(e.y-player.y,e.x-player.x);
+      e.x+=Math.cos(ang)*40; e.y+=Math.sin(ang)*40;
+      garlicAura.hitCooldowns[e.uid] = 0.5;
+      spawnParticles(e.x,e.y,'#fff',3,60,.25);
+    }
+  }
+}
+
+// ── 圣水/净罪圣水：地面火池 ──
+let waterZones = []; // [{x,y,r,dmg,life,maxLife,evolved}]
+let waterCooldown = 0;
+
+function updateHolyWater(delta){
+  const wi = player.weapons.find(w=>w.defId==='holywater');
+  if(!wi) return;
+  const rate = (WEAPON_DEFS.holywater.fireRate + wi.bonusRate) * playerStats.cooldown;
+  waterCooldown -= delta;
+  if(waterCooldown<=0){
+    waterCooldown = 1/rate;
+    // 随机在屏幕内一个位置砸瓶
+    const tx = cam.x + rng(-CW/3, CW/3);
+    const ty = cam.y + rng(-CH/4, CH/4);
+    const r  = (WEAPON_DEFS.holywater.range + (wi.bonusRange||0)) * playerStats.area * (wi.evolved?3.5:1);
+    const count = 1 + (wi.bonusCount||0) + playerStats.amount;
+    for(let i=0;i<count;i++){
+      waterZones.push({
+        x: tx+rng(-60,60), y: ty+rng(-60,60),
+        r, dmg: (WEAPON_DEFS.holywater.damage+wi.bonusDmg)*player.dmgMult*playerStats.might,
+        life: (2.0 + wi.level*0.3) * playerStats.duration,
+        maxLife: (2.0 + wi.level*0.3) * playerStats.duration,
+        hitCooldowns:{}, evolved: wi.evolved,
+      });
+    }
+  }
+  for(let i=waterZones.length-1;i>=0;i--){
+    const z=waterZones[i];
+    z.life-=delta;
+    // 净罪圣水：火池向玩家移动
+    if(z.evolved){ const ang=Math.atan2(player.y-z.y,player.x-z.x); z.x+=Math.cos(ang)*30*delta; z.y+=Math.sin(ang)*30*delta; }
+    if(z.life<=0){ waterZones.splice(i,1); continue; }
+    for(const uid in z.hitCooldowns){ z.hitCooldowns[uid]-=delta; if(z.hitCooldowns[uid]<=0) delete z.hitCooldowns[uid]; }
+    for(let j=0;j<enemies.length;j++){
+      const e=enemies[j];
+      if(z.hitCooldowns[e.uid]) continue;
+      if(dist(z,e)<z.r+e.r){ dealDmg(e,z.dmg); z.hitCooldowns[e.uid]=0.5; spawnParticles(e.x,e.y,'#74b9ff',4,70,.3); }
+    }
+  }
+}
+
+// ── 闪电戒指/雷电环带 ──
+let lightningCooldown = 0;
+let lightningBolts = []; // [{x,y,life,maxLife,r,evolved}] 用于渲染
+
+function updateLightning(delta){
+  const wi = player.weapons.find(w=>w.defId==='lightning');
+  if(!wi) return;
+  const rate = (WEAPON_DEFS.lightning.fireRate + wi.bonusRate) * playerStats.cooldown;
+  lightningCooldown -= delta;
+  // 更新闪电视觉
+  for(let i=lightningBolts.length-1;i>=0;i--){ lightningBolts[i].life-=delta; if(lightningBolts[i].life<=0) lightningBolts.splice(i,1); }
+  if(lightningCooldown<=0){
+    lightningCooldown = 1/rate;
+    const count = 1 + (wi.bonusCount||0) + Math.floor(playerStats.amount);
+    const range = (WEAPON_DEFS.lightning.range + wi.bonusRange) * playerStats.area;
+    const dmg   = (WEAPON_DEFS.lightning.damage+wi.bonusDmg)*player.dmgMult*playerStats.might;
+    // 找范围内随机敌人
+    const cands = enemies.filter(e=>dist(player,e)<range*2);
+    shuffle(cands).slice(0,count).forEach(e=>{
+      dealDmg(e, dmg);
+      lightningBolts.push({x:e.x,y:e.y,life:.3,maxLife:.3,r:20,evolved:wi.evolved});
+      spawnParticles(e.x,e.y,'#ffeaa7',12,160,.4);
+      // 雷电环带：二次爆炸
+      if(wi.evolved){
+        setTimeout(()=>{
+          spawnShockwave(e.x,e.y,80,'#ffeaa7');
+          for(let k=0;k<enemies.length;k++) if(dist(e,enemies[k])<80) dealDmg(enemies[k], dmg*0.6);
+          spawnParticles(e.x,e.y,'#fff',10,130,.4);
+        },400);
+      }
+    });
+    if(cands.length===0){
+      // 随机屏幕位置
+      const tx=cam.x+rng(-CW/3,CW/3), ty=cam.y+rng(-CH/3,CH/3);
+      lightningBolts.push({x:tx,y:ty,life:.3,maxLife:.3,r:20,evolved:wi.evolved});
+    }
+  }
+}
+
+// ── 和平鸽 / 乌鸦 / 破坏者 ──
+let birdAngle = [0, Math.PI]; // peachone/ebonywings的角度
+let birdCooldowns = {peachone:0, ebonywings:0};
+let birdBombs = []; // [{x,y,r,life,color}]
+
+function updateBirds(delta){
+  ['peachone','ebonywings'].forEach((id,idx)=>{
+    const wi = player.weapons.find(w=>w.defId===id || (w.defId==='vandalier'));
+    if(!wi) return;
+    const def = WEAPON_DEFS[id] || WEAPON_DEFS.peachone;
+    const orbitR = (160 + (wi.bonusRange||0)) * playerStats.area;
+    const spd = (wi.defId==='vandalier' ? 2.5 : 1.8) * (idx===0 ? 1 : -1);
+    birdAngle[idx] += spd * delta;
+    const bx = player.x + Math.cos(birdAngle[idx]) * orbitR;
+    const by = player.y + Math.sin(birdAngle[idx]) * orbitR;
+    birdCooldowns[id] = (birdCooldowns[id]||0) - delta;
+    if(birdCooldowns[id]<=0){
+      birdCooldowns[id] = 0.8 * playerStats.cooldown;
+      const dmg = (def.damage+(wi.bonusDmg||0))*player.dmgMult*playerStats.might*(wi.defId==='vandalier'?1.8:1);
+      const r = (def.bulletR+(wi.bonusR||0))*playerStats.area;
+      birdBombs.push({x:bx,y:by,r,life:.35,maxLife:.35,color:idx===0?'#fff':'#2d3436',dmg,hit:new Set()});
+      spawnParticles(bx,by,idx===0?'#fff':'#636e72',6,90,.3);
+    }
+  });
+  for(let i=birdBombs.length-1;i>=0;i--){
+    const b=birdBombs[i]; b.life-=delta;
+    if(b.life<=0){birdBombs.splice(i,1);continue;}
+    for(let j=0;j<enemies.length;j++){
+      const e=enemies[j]; if(b.hit.has(e.uid)) continue;
+      if(dist(b,e)<b.r+e.r){ b.hit.add(e.uid); dealDmg(e,b.dmg); spawnParticles(b.x,b.y,b.color,5,80,.3); }
+    }
+  }
+}
+
+// ── 旋转榴莲（旧代码保留兼容，这里 durian 已移除 WEAPON_DEFS）──
+let orbitalSatellites=[]; // 兼容旧渲染代码（留空即可）
+function syncOrbitalSatellites(){}
+function updateOrbitalSatellites(delta){}
+let durianOrbs=[]; let durianAngle=0;
+function syncDurianOrbs(){}
+function updateDurianOrbs(delta){}
+let axeProjectiles=[];
+function updateAxeProjectiles(delta){}
+
+// ── vandalier 合成处理 ──
+function checkVandalierFusion(){
+  const p1 = player.weapons.find(w=>w.defId==='peachone');
+  const p2 = player.weapons.find(w=>w.defId==='ebonywings');
+  if(!p1||!p2||p1.level<MAX_WEAPON_LEVEL||p2.level<MAX_WEAPON_LEVEL) return false;
+  return true;
 }
 
 let particles=[];
@@ -1915,150 +2137,7 @@ function spawnDmgText(wx,wy,text,color){
   setTimeout(()=>el.remove(),820);
 }
 
-// ══════════════════════════════════════════
-//   旋转榴莲系统
-//   每颗榴莲是绕玩家旋转的实体，有碰撞体积
-// ══════════════════════════════════════════
-let durianOrbs = []; // [{angle, hitCooldowns, flashTimer, evolved}]
-let durianAngle = 0; // 全局旋转角（所有榴莲等间隔分布）
-
-function syncDurianOrbs(){
-  const wi = player.weapons.find(w=>w.defId==='durian');
-  if(!wi){ durianOrbs=[]; return; }
-  const count = 1 + (wi.bonusCount||0); // Lv1=1颗，每级+1
-  while(durianOrbs.length < count) durianOrbs.push({hitCooldowns:{}, flashTimer:0});
-  durianOrbs.length = count;
-}
-
-function updateDurianOrbs(delta){
-  const wi = player.weapons.find(w=>w.defId==='durian');
-  if(!wi||durianOrbs.length===0) return;
-  const def = WEAPON_DEFS.durian;
-  const orbitR   = def.range + (wi.bonusRange||0);   // 旋转半径
-  const orbitSpd = (2.2 + wi.level*0.18) * (wi.evolved ? 1.6 : 1); // 进化后更快
-  const dmg      = (def.damage + wi.bonusDmg) * player.dmgMult;
-  const r        = def.bulletR + (wi.bonusR||0);
-
-  durianAngle += orbitSpd * delta;
-
-  durianOrbs.forEach((orb, i)=>{
-    if(orb.flashTimer>0) orb.flashTimer-=delta;
-    // 等间隔分布
-    const a = durianAngle + (TAU / durianOrbs.length) * i;
-    orb.x = player.x + Math.cos(a) * orbitR;
-    orb.y = player.y + Math.sin(a) * orbitR;
-    orb.angle = a;
-    orb.r = r;
-
-    // 冷却计时
-    for(const uid in orb.hitCooldowns){
-      orb.hitCooldowns[uid]-=delta;
-      if(orb.hitCooldowns[uid]<=0) delete orb.hitCooldowns[uid];
-    }
-    // 碰撞检测
-    for(let j=0;j<enemies.length;j++){
-      const e=enemies[j];
-      if(orb.hitCooldowns[e.uid]) continue;
-      if(dist(orb,e)<orb.r+e.r){
-        // 进化后：AOE爆炸
-        if(wi.evolved){
-          spawnShockwave(orb.x,orb.y,60,'#adff2f');
-          for(let k=0;k<enemies.length;k++) if(dist(orb,enemies[k])<60) dealDmg(enemies[k], dmg*0.6);
-          spawnParticles(orb.x,orb.y,'#adff2f',10,120,.4);
-        } else {
-          dealDmg(e, dmg);
-          spawnParticles(orb.x,orb.y,'#adff2f',5,80,.3);
-        }
-        orb.hitCooldowns[e.uid] = 0.5;
-        orb.flashTimer = 0.1;
-      }
-    }
-  });
-}
-
-// ══════════════════════════════════════════
-//   飞斧系统
-//   抛物线轨迹，飞出后自动消失，定时重新发射
-// ══════════════════════════════════════════
-let axeProjectiles = []; // [{x,y,vx,vy,angle,life,maxLife,r,dmg,evolved,hit}]
-const AXE_GRAVITY = 480; // 重力加速度 px/s²
-
-function fireAxes(){
-  const wi = player.weapons.find(w=>w.defId==='axe');
-  if(!wi) return;
-  const def    = WEAPON_DEFS.axe;
-  const count  = def.count + (wi.bonusCount||0);
-  const dmg    = (def.damage + wi.bonusDmg) * player.dmgMult;
-  const spd    = def.bulletSpeed + (wi.bonusRange||0)*0.3;
-  const r      = def.bulletR + (wi.bonusR||0);
-  const spread = 0.28;
-
-  // 向玩家面朝方向 + 上方（偏转 -70°~-110°）扇形抛出
-  const baseAng = player.facing - Math.PI/2; // 偏向上方
-  for(let i=0;i<count;i++){
-    const off = count>1 ? (i/(count-1)-0.5)*spread*2 : 0;
-    const ang  = baseAng + off;
-    axeProjectiles.push({
-      x: player.x, y: player.y,
-      vx: Math.cos(ang)*spd,
-      vy: Math.sin(ang)*spd,
-      angle: ang,
-      spinAngle: rng(0, TAU),
-      life: 0,
-      maxLife: (def.range + (wi.bonusRange||0)) / spd * 1.5,
-      r, dmg,
-      evolved: !!wi.evolved,
-      hit: new Set(),
-    });
-  }
-}
-
-function updateAxeProjectiles(delta){
-  const wi = player.weapons.find(w=>w.defId==='axe');
-
-  // 定时发射
-  if(wi){
-    wi.cooldown = (wi.cooldown||0) - delta;
-    if(wi.cooldown <= 0){
-      wi.cooldown = 1/(WEAPON_DEFS.axe.fireRate + (wi.bonusRate||0));
-      fireAxes();
-    }
-  }
-
-  for(let i=axeProjectiles.length-1;i>=0;i--){
-    const a=axeProjectiles[i];
-    a.life+=delta;
-    a.vy += AXE_GRAVITY * delta;  // 重力
-    a.x  += a.vx * delta;
-    a.y  += a.vy * delta;
-    a.spinAngle += 8*delta; // 旋转动画
-
-    if(a.life>a.maxLife||a.x<-100||a.x>WORLD_W+100||a.y<-100||a.y>WORLD_H+100){
-      // 进化版落地爆炸
-      if(a.evolved){
-        spawnShockwave(a.x,a.y,80,'#cd853f');
-        spawnParticles(a.x,a.y,'#cd853f',14,160,.5);
-        for(let k=0;k<enemies.length;k++) if(dist(a,enemies[k])<80) dealDmg(enemies[k],a.dmg*0.7);
-      }
-      axeProjectiles.splice(i,1);
-      continue;
-    }
-
-    // 碰撞检测（穿透型，每个敌人只打一次）
-    for(let j=0;j<enemies.length;j++){
-      const e=enemies[j];
-      if(a.hit.has(e.uid)) continue;
-      if(dist(a,e)<a.r+e.r){
-        a.hit.add(e.uid);
-        dealDmg(e, a.dmg);
-        spawnParticles(a.x,a.y,'#cd853f',6,100,.3);
-        if(!a.evolved) { // 普通版每把斧打完就消失
-          axeProjectiles.splice(i,1); break;
-        }
-      }
-    }
-  }
-}
+// (旧 durian/axe 系统已合并进新 updateWeapons/updateBullets)
 
 let wave=1, waveTimer=0, spawnTimer=0;
 // 每波持续时间：前期长，后期缩短
@@ -2120,112 +2199,103 @@ function showWaveAnnounce(n,txt){
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
 }
 
-const MAX_WEAPON_LEVEL = 8; // 满级
-const EVOLVE_LEVEL     = 9; // 进化触发级别
+const MAX_WEAPON_LEVEL = 8;
 
-// 进化效果描述
-const EVOLVE_DESC = {
-  pistol:  '【极速连射】射速×2，子弹贯穿所有敌人',
-  shotgun: '【弹幕散射】子弹数×2，弹体变巨大',
-  grenade: '【地毯轰炸】连续3颗，爆炸范围×1.8',
-  laser:   '【死亡射线】穿透无限，宽度×3，持续灼烧',
-  orbital: '【超级风暴】光波圈数+3，伤害×2',
-  bouncer: '【混沌弹】反弹次数×2，弹体分裂为3',
-  durian:  '【爆炸榴莲】触碰即爆炸，AOE伤害',
-  axe:     '【风暴飞斧】落地爆炸，穿透所有敌人',
-};
+// ── 升级池 ──
+// 武器升级选项（从 WEAPON_DEFS 动态生成）
+function buildWeaponUpgrades(){
+  return Object.values(WEAPON_DEFS).map(def=>({
+    id:'w_'+def.id, name:def.name, icon:def.icon,
+    rarity: ['whip','wand','knife'].includes(def.id)?'common':['axe','cross','bible','garlic','holywater'].includes(def.id)?'rare':'epic',
+    type:'weapon', weaponId:def.id, desc:def.desc,
+  }));
+}
 
-const UPGRADE_POOL=[
-  {id:'unlock_shotgun',name:'霰弹枪',  icon:'🔧',rarity:'rare',  type:'weapon',weaponId:'shotgun',desc:'解锁/升级：子弹数量+1，弹体变大'},
-  {id:'unlock_grenade',name:'榴弹枪',  icon:'💥',rarity:'epic',  type:'weapon',weaponId:'grenade',desc:'解锁/升级：发射数量+1'},
-  {id:'unlock_laser',  name:'激光枪',  icon:'🔴',rarity:'epic',  type:'weapon',weaponId:'laser',  desc:'解锁/升级：光束变粗，伤害提升'},
-  {id:'unlock_orbital',name:'电流光波',icon:'⚡',rarity:'epic',  type:'weapon',weaponId:'orbital',desc:'解锁/升级：电流光波圈数+1'},
-  {id:'unlock_bouncer',name:'彩色弹球',icon:'🔮',rarity:'rare',  type:'weapon',weaponId:'bouncer',desc:'解锁/升级：发射数量+1，伤害提升'},
-  {id:'unlock_durian', name:'旋转榴莲',icon:'🌵',rarity:'rare',  type:'weapon',weaponId:'durian', desc:'解锁/升级：旋转数量+1，伤害提升'},
-  {id:'unlock_axe',    name:'飞斧',    icon:'🪓',rarity:'rare',  type:'weapon',weaponId:'axe',    desc:'解锁/升级：飞斧数量+1，伤害提升'},
-  {id:'pistol_up',     name:'手枪精通',icon:'🔫',rarity:'common',type:'weapon',weaponId:'pistol', desc:'手枪射速+伤害提升'},
-  {id:'hp_up',    name:'生命强化',icon:'❤️', rarity:'common',type:'passive',apply(){player.maxHp+=30;player.hp=Math.min(player.maxHp,player.hp+30);},desc:'最大HP+30，立即回复30'},
-  {id:'speed_up', name:'急速移动',icon:'👟', rarity:'common',type:'passive',apply(){player.speedMult*=1.15;},desc:'移动速度+15%'},
-  {id:'dmg_up',   name:'火力强化',icon:'🔥', rarity:'common',type:'passive',apply(){player.dmgMult*=1.25;},desc:'所有伤害+25%'},
-  {id:'regen',    name:'生命回复',icon:'💊', rarity:'rare',  type:'passive',apply(){player.hpRegen+=2;},   desc:'每秒恢复2 HP'},
-  {id:'armor',    name:'护甲强化',icon:'🛡️',rarity:'rare',  type:'passive',apply(){player.armorPct=Math.min(.72,player.armorPct+.15);},desc:'减伤+15%'},
-  {id:'magnet',   name:'磁铁',    icon:'🧲', rarity:'common',type:'passive',apply(){player.pickupRange+=70;},desc:'吸取范围+70'},
-  {id:'multishot',name:'多重射击',icon:'🌟', rarity:'epic',  type:'passive',apply(){player.extraShot=(player.extraShot||0)+1;},desc:'所有武器多发1颗'},
-];
+// 被动升级选项
+function buildPassiveUpgrades(){
+  return Object.values(PASSIVE_DEFS).map(def=>({
+    id:'p_'+def.id, name:def.name, icon:def.icon,
+    rarity: ['spinach','emptytome','pummarola','bracer'].includes(def.id)?'common':
+             ['armor','candelabrador','spellbinder','attractorb','crown'].includes(def.id)?'rare':'epic',
+    type:'passive', passiveId:def.id, desc:def.desc,
+  }));
+}
 
 function pickUpgrades(n=3){
-  // 先检查是否有武器可以进化（Lv8 → 进化）
-  const evolveOptions = player.weapons
-    .filter(w=> w.level>=MAX_WEAPON_LEVEL && !w.evolved)
-    .map(w=>({
-      id:'evolve_'+w.defId,
-      name: WEAPON_DEFS[w.defId].name + ' 进化！',
-      icon: WEAPON_DEFS[w.defId].icon + '✨',
-      rarity:'legend',
-      type:'evolve',
-      weaponId: w.defId,
-      desc: EVOLVE_DESC[w.defId] || '武器获得全新形态',
-    }));
-
-  // 进化选项强制出现（最多2个进化选项塞入候选）
-  const forcedEvolves = shuffle(evolveOptions).slice(0,2);
-
-  const av = UPGRADE_POOL.filter(u=>{
-    if(u.type==='weapon'){
-      const ex=player.weapons.find(w=>w.defId===u.weaponId);
-      if(ex && ex.evolved)           return false; // 已进化不再升级
-      if(ex && ex.level>=MAX_WEAPON_LEVEL) return false; // 满级且无进化时屏蔽（进化选项单独处理）
-      if(!ex && player.weapons.length>=6)  return false;
+  // 1. 超武合成（满足条件时强制出现）
+  const superOptions = [];
+  Object.entries(EVOLVE_RECIPES).forEach(([eid, recipe])=>{
+    if(eid==='vandalier') return; // vandalier 特殊处理（两把鸟合成）
+    const wInst = player.weapons.find(w=>w.defId===recipe.weapon && w.level>=MAX_WEAPON_LEVEL && !w.evolved);
+    const pInst = playerPassives[recipe.passive] > 0;
+    if(wInst && pInst){
+      superOptions.push({
+        id:'super_'+eid, name:recipe.name, icon:recipe.icon,
+        rarity:'legend', type:'super', evolveId:eid, weaponId:recipe.weapon,
+        desc:recipe.desc,
+      });
     }
+  });
+  // vandalier
+  if(checkVandalierFusion()){
+    const r2 = EVOLVE_RECIPES.vandalier;
+    const alreadyEvolved = player.weapons.find(w=>w.defId==='vandalier');
+    if(!alreadyEvolved) superOptions.push({id:'super_vandalier',name:r2.name,icon:r2.icon,rarity:'legend',type:'super',evolveId:'vandalier',weaponId:'peachone',desc:r2.desc});
+  }
+
+  // 2. 普通武器升级
+  const wUpgs = buildWeaponUpgrades().filter(u=>{
+    const ex=player.weapons.find(w=>w.defId===u.weaponId);
+    if(ex && (ex.evolved || ex.level>=MAX_WEAPON_LEVEL)) return false;
+    if(!ex && player.weapons.length>=6) return false;
     return true;
   });
 
-  // 进化选项优先，凑满 n 张
-  const combined = [...forcedEvolves, ...shuffle(av)];
-  return combined.slice(0, n);
+  // 3. 被动升级
+  const pUpgs = buildPassiveUpgrades().filter(u=>{
+    const lv = playerPassives[u.passiveId]||0;
+    return lv < PASSIVE_DEFS[u.passiveId].max;
+  });
+
+  const forced = superOptions.slice(0,2);
+  const rest = shuffle([...wUpgs,...pUpgs]).slice(0, n - forced.length);
+  return [...forced, ...rest].slice(0,n);
 }
 
 function applyUpgrade(upg){
-  if(upg.type==='evolve'){
-    // 武器进化
-    const ex=player.weapons.find(w=>w.defId===upg.weaponId);
-    if(!ex) return;
-    ex.evolved = true;
-    ex.level   = EVOLVE_LEVEL;
-    // 进化专属加成
-    switch(upg.weaponId){
-      case 'pistol':  ex.bonusRate+=3;   ex.bonusDmg+=30; break;
-      case 'shotgun': ex.bonusCount=(ex.bonusCount||0)+5; ex.bonusR=(ex.bonusR||0)+4; break;
-      case 'grenade': ex.bonusCount=(ex.bonusCount||0)+2; ex.bonusDmg+=60; break;
-      case 'laser':   ex.bonusR=(ex.bonusR||0)+8;  ex.bonusDmg+=50; break;
-      case 'orbital': ex.bonusCount=(ex.bonusCount||0)+3; ex.bonusDmg+=40; break;
-      case 'bouncer': ex.bonusCount=(ex.bonusCount||0)+2; ex.bonusDmg+=40; break;
-      case 'durian':  ex.bonusCount=(ex.bonusCount||0)+2; ex.bonusDmg+=50; break;
-      case 'axe':     ex.bonusCount=(ex.bonusCount||0)+3; ex.bonusDmg+=60; break;
+  if(upg.type==='super'){
+    // 超武进化
+    if(upg.evolveId==='vandalier'){
+      // 移除两只鸟，加入vandalier
+      player.weapons = player.weapons.filter(w=>w.defId!=='peachone'&&w.defId!=='ebonywings');
+      player.weapons.push({...createWeapon('peachone'), defId:'vandalier', evolved:true, level:MAX_WEAPON_LEVEL});
+    } else {
+      const ex=player.weapons.find(w=>w.defId===upg.weaponId);
+      if(ex){ ex.evolved=true; ex.level=MAX_WEAPON_LEVEL+1; ex.bonusDmg+=ex.bonusDmg*0.5; }
     }
-    spawnParticles(player.x,player.y,'#f9ca24',30,200,.8);
-    spawnParticles(player.x,player.y,'#fff',20,160,.6);
+    spawnParticles(player.x,player.y,'#f9ca24',40,250,1.0);
+    spawnParticles(player.x,player.y,'#fff',25,180,.7);
+    Audio.levelUp();
   } else if(upg.type==='weapon'){
     const ex=player.weapons.find(w=>w.defId===upg.weaponId);
     if(ex){
-      ex.level++;
+      ex.level = Math.min(ex.level+1, MAX_WEAPON_LEVEL);
       const base=WEAPON_DEFS[upg.weaponId];
-      ex.bonusDmg  += base.damage * 0.22;
-      ex.bonusRate += 0.12;
-      if(upg.weaponId!=='orbital') ex.bonusRange += 25;
-      // 专属升级
-      if(upg.weaponId==='laser')        ex.bonusR=(ex.bonusR||0)+1.5;
-      else if(upg.weaponId==='grenade') ex.bonusCount=(ex.bonusCount||0)+1;
-      else if(upg.weaponId==='shotgun'){ex.bonusCount=(ex.bonusCount||0)+1; ex.bonusR=(ex.bonusR||0)+0.8;}
-      else if(upg.weaponId==='durian')  ex.bonusCount=(ex.bonusCount||0)+1;
-      else if(upg.weaponId==='axe')     ex.bonusCount=(ex.bonusCount||0)+1;
-      else if(upg.weaponId==='bouncer') ex.bonusCount=(ex.bonusCount||0)+1;
+      ex.bonusDmg  += base.damage * 0.20;
+      ex.bonusRate += 0.10;
+      ex.bonusRange+= 18;
+      // 专属
+      if(['bible','garlic','holywater','lightning','peachone','ebonywings'].includes(upg.weaponId))
+        ex.bonusCount=(ex.bonusCount||0)+1;
+      else if(upg.weaponId==='cross') ex.bonusCount=(ex.bonusCount||0)+1;
+      else if(upg.weaponId==='axe')   ex.bonusCount=(ex.bonusCount||0)+1;
     } else {
       player.weapons.push(createWeapon(upg.weaponId));
     }
-  } else if(upg.apply) upg.apply();
-  syncOrbitalSatellites();
-  syncDurianOrbs();
+  } else if(upg.type==='passive'){
+    applyPassive(upg.passiveId);
+  }
+  syncBibleOrbs();
   updateWeaponUI();
 }
 
@@ -2389,48 +2459,161 @@ function updatePlayer(delta){
   cam.y=lerp(cam.y,player.y,7*delta);
 }
 
+// ── 找屏幕内最近目标 ──
+function findNearestTarget(px,py,maxR){
+  let target=null, minD=Infinity;
+  const hW=CW/2, hH=CH/2;
+  for(let i=0;i<enemies.length;i++){
+    const e=enemies[i];
+    const sx=e.x-cam.x+hW, sy=e.y-cam.y+hH;
+    if(sx<-e.r||sx>CW+e.r||sy<-e.r||sy>CH+e.r) continue;
+    const d=dist({x:px,y:py},e);
+    if(d<minD&&d<maxR){minD=d;target=e;}
+  }
+  return target;
+}
+
 function updateWeapons(delta){
   player.weapons.forEach(w=>{
-    if(WEAPON_DEFS[w.defId].isOrbital) return; // 轨道武器独立更新
-    w.cooldown-=delta;
-    const def=WEAPON_DEFS[w.defId], rate=def.fireRate+w.bonusRate;
-    if(w.cooldown>0) return;
-    w.cooldown=1/rate;
-    let target=null, minD=Infinity;
-    const maxR=(def.range+w.bonusRange)*1.6;
-    // 只瞄准屏幕内可见的敌人（世界坐标转屏幕坐标，判断是否在视口内）
-    const hW=CW/2, hH=CH/2;
-    for(let i=0;i<enemies.length;i++){
-      const e=enemies[i];
-      const sx=e.x-cam.x+hW, sy=e.y-cam.y+hH;
-      if(sx<-e.r||sx>CW+e.r||sy<-e.r||sy>CH+e.r) continue; // 屏幕外跳过
-      const d=dist(player,e);
-      if(d<minD&&d<maxR){minD=d;target=e;}
-    }
-    if(!target) return;
-    const angle=Math.atan2(target.y-player.y,target.x-player.x);
-    const extra=player.extraShot||0;
-    const bonusCount=w.bonusCount||0;
+    const def=WEAPON_DEFS[w.defId];
+    if(!def) return;
+    // 特殊武器由独立函数处理
+    if(['bible','garlic','holywater','lightning','peachone','ebonywings','vandalier'].includes(w.defId)) return;
 
-    Audio.shoot(def.id);
-    if(def.shotgunSpread){
-      // 霰弹：基础count + bonusCount + extraShot，弹体也随升级变大
-      const tc = def.count + bonusCount + extra;
-      const hs = def.shotgunSpread*(tc-1)/2;
-      const r  = def.bulletR + (w.bonusR||0);
-      for(let i=0;i<tc;i++) spawnBullet(player.x,player.y,angle-hs+def.shotgunSpread*i,def,'player',w,r);
-    } else if(def.id==='grenade'){
-      // 榴弹：每次发射 1+bonusCount 颗，分散角度
-      const tc = 1 + bonusCount + extra;
-      const spreadStep = tc>1 ? 0.28 : 0;
-      for(let i=0;i<tc;i++){
-        const a = angle + (i-(tc-1)/2)*spreadStep;
-        spawnBullet(player.x,player.y,a,def,'player',w);
+    w.cooldown=(w.cooldown||0)-delta;
+    const rate=(def.fireRate+w.bonusRate) * playerStats.cooldown;
+    if(w.cooldown>0) return;
+    w.cooldown=1/Math.max(0.1,rate);
+
+    const count = (def.count||1) + (w.bonusCount||0) + Math.floor(playerStats.amount);
+    const dmg   = (def.damage + w.bonusDmg) * player.dmgMult * playerStats.might;
+    const spd   = ((def.bulletSpeed||300) + (w.bonusRange||0)*0.3) * playerStats.speed;
+    const rng2  = (def.range + (w.bonusRange||0)) * playerStats.area;
+    const bulletR = (def.bulletR + (w.bonusR||0)) * playerStats.area;
+
+    Audio.shoot(w.defId);
+
+    // ── 鞭子：左右水平挥击穿透 ──
+    if(def.type==='whip'){
+      const sign = [1,-1];
+      for(let s=0;s<sign.length;s++){
+        const wdef = {...def, bulletSpeed:0, damage:dmg, range:rng2, bulletR:bulletR*1.5, spread:0};
+        spawnBullet(player.x,player.y, s===0?0:Math.PI, wdef,'player',null,bulletR*1.5);
+        // 鞭子是近程挥击，把子弹速度设为极慢来模拟
       }
-    } else {
-      // 其他武器（手枪、激光）：bonusR 已在 spawnBullet 里自动应用
-      for(let i=0;i<(def.count||1)+extra;i++) spawnBullet(player.x,player.y,angle,def,'player',w);
+      // 鞭子另起一套：产生一个短暂的扇形碰撞框
+      const whipDef={...def,damage:dmg,bulletSpeed:280,bulletColor:w.evolved?'#e74c3c':'#f39c12',bulletR:bulletR};
+      for(let i=0;i<count;i++){
+        spawnBullet(player.x,player.y,i%2===0?rng(-0.3,0.3):Math.PI+rng(-0.3,0.3),whipDef,'player',null,bulletR);
+      }
+      return;
     }
+
+    // ── 斧头：向上抛出，抛物线 ──
+    if(def.type==='axe'){
+      for(let i=0;i<count;i++){
+        const off = count>1?(i/(count-1)-0.5)*0.5:0;
+        const ang = -Math.PI/2 + off + rng(-0.2,0.2);
+        const b={
+          x:player.x,y:player.y,
+          ox:player.x,oy:player.y,
+          vx:Math.cos(ang)*spd*0.9,
+          vy:Math.sin(ang)*spd*0.9,
+          r:bulletR, color:w.evolved?'#e74c3c':'#636e72',
+          damage:dmg*(w.evolved?1.8:1),
+          range:rng2, traveled:0,
+          owner:'player', aoe:w.evolved?80:0,
+          pierce:w.evolved?999:1,
+          hit:new Set(), trail:[],
+          isAxe:true, spinAngle:rng(0,TAU),
+          isLaser:false,isGrenade:false,isBouncer:false,
+        };
+        bullets.push(b);
+      }
+      return;
+    }
+
+    // ── 十字架/天堂之剑：回旋镖 ──
+    if(def.type==='boomerang'){
+      const target=findNearestTarget(player.x,player.y,rng2*2);
+      const ang=target?Math.atan2(target.y-player.y,target.x-player.x):player.facing;
+      for(let i=0;i<count;i++){
+        const a=ang+(i-(count-1)/2)*0.25;
+        const b={
+          x:player.x,y:player.y,ox:player.x,oy:player.y,
+          vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,
+          r:bulletR,color:w.evolved?'#f9ca24':'#fdcb6e',
+          damage:dmg*(w.evolved?2.5:1),
+          range:rng2, traveled:0,
+          owner:'player',aoe:0,pierce:3,
+          hit:new Set(),trail:[],
+          isBoomerang:true, isLaser:false,isGrenade:false,isBouncer:false,
+          maxRange:rng2, returning:false,
+          spinAngle:0,
+        };
+        bullets.push(b);
+      }
+      return;
+    }
+
+    // ── 普通子弹武器（魔杖/小刀/火焰魔杖/符文追踪器）──
+    let target=null;
+    if(def.type==='bullet'){
+      if(w.defId==='knife'){
+        // 小刀：朝移动方向
+        const ang=player.facing;
+        for(let i=0;i<count;i++){
+          const a=ang+(i-(count-1)/2)*0.18;
+          spawnBulletCustom(player.x,player.y,a,dmg,spd,rng2,bulletR,def.bulletColor,def.pierce||1,0,w.evolved);
+        }
+      } else if(w.defId==='firewand'){
+        // 火焰魔杖：随机朝屏幕内敌人
+        const cands=enemies.filter(e=>{const sx=e.x-cam.x+CW/2,sy=e.y-cam.y+CH/2;return sx>0&&sx<CW&&sy>0&&sy<CH;});
+        const t2 = cands.length>0 ? cands[rngI(0,cands.length-1)] : null;
+        const ang = t2 ? Math.atan2(t2.y-player.y,t2.x-player.x) : rng(0,TAU);
+        for(let i=0;i<count;i++){
+          const a=ang+rng(-def.spread,def.spread);
+          spawnBulletCustom(player.x,player.y,a,dmg,spd,rng2,bulletR,w.evolved?'#ff2200':'#e17055',1,w.evolved?100:0,w.evolved);
+        }
+      } else if(w.defId==='runetracer'){
+        // 符文追踪器：随机方向，全屏反弹
+        const ang=rng(0,TAU);
+        for(let i=0;i<count;i++){
+          const b2={
+            x:player.x,y:player.y,ox:player.x,oy:player.y,
+            vx:Math.cos(ang+i*0.3)*spd,vy:Math.sin(ang+i*0.3)*spd,
+            r:bulletR,color:'#a29bfe',
+            damage:dmg,range:99999,traveled:0,
+            owner:'player',aoe:w.evolved?60:0,pierce:999,
+            hit:new Set(),trail:[],
+            isBouncer:true,bounceLeft:w.evolved?99:12,
+            isLaser:false,isGrenade:false,
+          };
+          bullets.push(b2);
+        }
+      } else {
+        // 魔杖等：瞄准最近敌人
+        target=findNearestTarget(player.x,player.y,rng2*1.6);
+        if(!target) return;
+        const ang=Math.atan2(target.y-player.y,target.x-player.x);
+        for(let i=0;i<count;i++){
+          const a=ang+(i-(count-1)/2)*0.18+rng(-def.spread||0,def.spread||0);
+          spawnBulletCustom(player.x,player.y,a,dmg*(w.evolved?2:1),spd*(w.evolved?1.5:1),rng2,bulletR,def.bulletColor,w.evolved?999:1,0,false);
+        }
+      }
+    }
+  });
+}
+
+function spawnBulletCustom(x,y,angle,damage,speed,range,r,color,pierce,aoe,evolved){
+  if(bullets.length>=MAX_BULLETS) return;
+  bullets.push({
+    x,y,ox:x,oy:y,
+    vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed,
+    r,color,damage,range,traveled:0,
+    owner:'player',aoe,pierce,hit:new Set(),trail:[],
+    isLaser:false,isGrenade:aoe>0,isBouncer:false,bounceLeft:0,
+    isBoomerang:false,isAxe:false,
   });
 }
 
@@ -2438,6 +2621,26 @@ function updateBullets(delta){
   for(let i=bullets.length-1;i>=0;i--){
     const b=bullets[i];
     b.trail.push({x:b.x,y:b.y}); if(b.trail.length>8) b.trail.shift();
+
+    // 斧头重力
+    if(b.isAxe){ b.vy += 520*delta; b.spinAngle=(b.spinAngle||0)+9*delta; }
+
+    // 回旋镖折返
+    if(b.isBoomerang){
+      b.spinAngle=(b.spinAngle||0)+12*delta;
+      if(!b.returning && b.traveled>b.maxRange*0.5){
+        b.returning=true;
+        b.hit.clear();
+      }
+      if(b.returning){
+        const ang=Math.atan2(player.y-b.y,player.x-b.x);
+        const spd=Math.hypot(b.vx,b.vy);
+        b.vx=lerp(b.vx,Math.cos(ang)*spd,8*delta);
+        b.vy=lerp(b.vy,Math.sin(ang)*spd,8*delta);
+        if(dist(b,player)<player.r+b.r){bullets.splice(i,1);continue;}
+      }
+    }
+
     b.x+=b.vx*delta; b.y+=b.vy*delta; b.traveled+=Math.hypot(b.vx,b.vy)*delta;
 
     // 弹球反弹逻辑（基于视口边缘，即相机可见范围）
@@ -2545,7 +2748,17 @@ function hurtPlayer(dmg){
   Audio.playerHurt();
   spawnParticles(player.x,player.y,'#e74c3c',7,110,.38);
   cam.x+=rng(-4,4); cam.y+=rng(-4,4);
-  if(player.hp<=0){player.hp=0;endRun(false);}
+  if(player.hp<=0){
+    if(playerStats.revive>0){
+      playerStats.revive--;
+      player.hp=player.maxHp*0.3;
+      player.invincible=2.0;
+      spawnParticles(player.x,player.y,'#f9ca24',20,180,.8);
+      spawnDmgText(player.x,player.y-40,'复活！','#f9ca24');
+    } else {
+      player.hp=0; endRun(false);
+    }
+  }
 }
 function hurtPlayerContact(dmg){
   if(player.invincible>0) return;
@@ -2599,14 +2812,14 @@ function updateFragPickups(delta){
     if(dist(player,f)<player.r+f.r){
       Audio.pickup();
       fragPickups.splice(i,1);
-      runFragments+=f.amount;
+      runFragments+=Math.round(f.amount*playerStats.gold);
       document.getElementById('irFragments').textContent=runFragments;
     }
   }
 }
 
 function gainXP(xp){
-  const m=save.shopPurchased['xpBoost']?1.25:1;
+  const m=(save.shopPurchased['xpBoost']?1.25:1) * playerStats.xpGain;
   player.xp+=xp*m;
   while(player.xp>=player.xpNext){player.xp-=player.xpNext;player.level++;player.xpNext=Math.floor(player.xpNext*1.28);levelUpQueue++;}
   if(levelUpQueue>0&&!levelUpActive) showNextLevelUp();
@@ -2639,19 +2852,24 @@ function showNextLevelUp(){
     el.className=`card ${rClass}`;
     const rLabel={common:'普通',rare:'稀有',epic:'史诗',legend:'传说'}[upg.rarity]||upg.rarity;
     const rColor={common:'#95a5a6',rare:'#3498db',epic:'#9b59b6',legend:'#f9ca24'}[upg.rarity]||'#aaa';
-    const isEvolve  = upg.type==='evolve';
+    const isSuper   = upg.type==='super';
+    const isPassive = upg.type==='passive';
     const isUpgrade = upg.type==='weapon' && player.weapons.find(w=>w.defId===upg.weaponId);
-    const btnLabel  = isEvolve ? '★' : isUpgrade ? '↑' : '+';
-    // 进化卡片加特殊背景动画样式
-    if(isEvolve) el.style.cssText='background:linear-gradient(135deg,#2a1a00,#3a2800);border-left:4px solid #f9ca24;box-shadow:0 0 20px rgba(249,202,36,0.4);';
+    const btnLabel  = isSuper ? '★' : isPassive ? '✦' : isUpgrade ? '↑' : '+';
+    const passiveLv = isPassive ? (playerPassives[upg.passiveId]||0) : 0;
+    const passiveMax= isPassive ? PASSIVE_DEFS[upg.passiveId]?.max : 0;
+    // 超武卡片特殊样式
+    if(isSuper) el.style.cssText='background:linear-gradient(135deg,#2a1a00,#3a2800);border-left:4px solid #f9ca24;box-shadow:0 0 20px rgba(249,202,36,0.4);';
+    // 被动技能显示当前等级
+    const passiveLvText = isPassive ? `<span style="color:#74b9ff;font-size:9px;margin-left:6px">Lv${passiveLv}→${passiveLv+1}/${passiveMax}</span>` : '';
     el.innerHTML=`
       <div class="card-icon">${upg.icon}</div>
       <div class="card-body">
-        <div class="card-name">${upg.name}${isEvolve?'':''}${!isEvolve&&isUpgrade?'<span style="color:#f9ca24;font-size:10px;margin-left:6px">升级</span>':''}</div>
+        <div class="card-name">${upg.name}${isSuper?'':isUpgrade?'<span style="color:#f9ca24;font-size:10px;margin-left:6px">升级</span>':''}${passiveLvText}</div>
         <div class="card-desc">${upg.desc}</div>
-        <div class="card-rarity ${rClass}" style="color:${rColor}">${isEvolve?'⚡ 进化！':rLabel}</div>
+        <div class="card-rarity ${rClass}" style="color:${rColor}">${isSuper?'⚡ 超武合成！':isPassive?'被动':rLabel}</div>
       </div>
-      <div class="card-btn" style="${isEvolve?'border-color:#f9ca24;color:#f9ca24;background:rgba(249,202,36,0.15);':''}">${btnLabel}</div>`;
+      <div class="card-btn" style="${isSuper?'border-color:#f9ca24;color:#f9ca24;background:rgba(249,202,36,0.15);':''}">${btnLabel}</div>`;
     function pickThis(ev){
       if(ev && ev.cancelable) ev.preventDefault();
       if(_pickingUpgrade) return;
@@ -2971,6 +3189,33 @@ function render(){
       ctx.beginPath();ctx.moveTo(-b.r,0);ctx.lineTo(b.r,0);ctx.stroke();
       ctx.beginPath();ctx.moveTo(0,-b.r);ctx.lineTo(0,b.r);ctx.stroke();
       ctx.restore();
+    } else if(b.isAxe){
+      ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.spinAngle||0);
+      const r=b.r;
+      ctx.fillStyle='#6b3a2a'; ctx.fillRect(-r*0.15,-r*0.1,r*0.3,r*1.1);
+      const ag=ctx.createRadialGradient(-r*.2,-r*.2,0,0,0,r);
+      ag.addColorStop(0,b.color==='#e74c3c'?'#ff6666':'#e0c080');
+      ag.addColorStop(1,b.color==='#e74c3c'?'#880000':'#8b6914');
+      ctx.beginPath();ctx.moveTo(-r*.15,-r*.5);ctx.lineTo(-r,-r*.1);ctx.lineTo(-r*.8,r*.4);ctx.lineTo(r*.15,-r*.5);ctx.closePath();
+      ctx.fillStyle=ag;ctx.fill();ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=1;ctx.stroke();
+      ctx.restore();
+    } else if(b.isBoomerang){
+      ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.spinAngle||0);
+      const r=b.r;
+      // 十字架形状
+      const cg=ctx.createLinearGradient(-r,0,r,0);
+      cg.addColorStop(0,b.returning?'#f9ca24':'#fdcb6e'); cg.addColorStop(1,b.returning?'#f0932b':'#e17055');
+      ctx.fillStyle=cg;
+      ctx.fillRect(-r,-r*0.25,r*2,r*0.5);
+      ctx.fillRect(-r*0.25,-r,r*0.5,r*2);
+      ctx.strokeStyle='rgba(255,255,255,0.5)';ctx.lineWidth=1;
+      ctx.strokeRect(-r,-r*0.25,r*2,r*0.5);
+      if(b.returning){
+        const rg=ctx.createRadialGradient(0,0,0,0,0,r*2);
+        rg.addColorStop(0,'rgba(249,202,36,0.4)');rg.addColorStop(1,'transparent');
+        ctx.beginPath();ctx.arc(0,0,r*2,0,TAU);ctx.fillStyle=rg;ctx.fill();
+      }
+      ctx.restore();
     } else {
       for(let i=0;i<b.trail.length;i++){const t=(i+1)/b.trail.length,al=Math.floor(t*110).toString(16).padStart(2,'0');ctx.beginPath();ctx.arc(b.trail[i].x,b.trail[i].y,b.r*t*.6,0,TAU);ctx.fillStyle=b.color+al;ctx.fill();}
       ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,TAU);ctx.fillStyle=b.color;ctx.fill();
@@ -3028,76 +3273,91 @@ function render(){
     }
   });
 
-  // ── 旋转榴莲渲染 ──
-  durianOrbs.forEach((orb,i)=>{
-    if(!orb.x) return;
-    ctx.save(); ctx.translate(orb.x, orb.y);
-    const evolved = player.weapons.find(w=>w.defId==='durian')?.evolved;
+  // ── 大蒜光环 ──
+  {const wi=player.weapons.find(w=>w.defId==='garlic');
+  if(wi){
+    const r=(WEAPON_DEFS.garlic.range+(wi.bonusRange||0))*playerStats.area;
+    const pulse=0.55+Math.sin(shockRingTime*3)*0.25;
+    const gc=ctx.createRadialGradient(player.x,player.y,0,player.x,player.y,r);
+    gc.addColorStop(0,`rgba(255,255,255,${0.08*pulse})`);
+    gc.addColorStop(0.7,`rgba(200,255,200,${0.12*pulse})`);
+    gc.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(player.x,player.y,r,0,TAU);ctx.fillStyle=gc;ctx.fill();
+    if(wi.evolved){ctx.beginPath();ctx.arc(player.x,player.y,r,0,TAU);ctx.strokeStyle=`rgba(255,100,0,${0.3*pulse})`;ctx.lineWidth=3;ctx.stroke();}
+  }}
+
+  // ── 圣水火海 ──
+  waterZones.forEach(z=>{
+    const alpha=(z.life/z.maxLife)*0.6;
+    const fg=ctx.createRadialGradient(z.x,z.y,0,z.x,z.y,z.r);
+    fg.addColorStop(0,`rgba(100,180,255,${alpha})`);
+    fg.addColorStop(0.6,`rgba(50,120,220,${alpha*0.6})`);
+    fg.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,TAU);ctx.fillStyle=fg;ctx.fill();
+    // 波纹
+    ctx.beginPath();ctx.arc(z.x,z.y,z.r*(0.6+Math.sin(shockRingTime*4+z.x)*0.2),0,TAU);
+    ctx.strokeStyle=`rgba(150,220,255,${alpha*0.8})`;ctx.lineWidth=2;ctx.stroke();
+  });
+
+  // ── 闪电特效 ──
+  lightningBolts.forEach(lb=>{
+    const t=lb.life/lb.maxLife;
+    ctx.save();
+    // 闪电柱从天而降
+    ctx.beginPath();
+    ctx.moveTo(lb.x, lb.y-200);
+    for(let s=0;s<8;s++){ctx.lineTo(lb.x+rng(-20,20), lb.y-200+s*28);}
+    ctx.lineTo(lb.x, lb.y);
+    ctx.strokeStyle=`rgba(255,255,150,${t*0.9})`;ctx.lineWidth=3+t*4;ctx.stroke();
     // 外层光晕
-    const glowColor = evolved ? '#ff6600' : '#adff2f';
-    const gl = ctx.createRadialGradient(0,0,0,0,0,orb.r*2.2);
-    gl.addColorStop(0, glowColor+'66'); gl.addColorStop(1,'transparent');
-    ctx.beginPath(); ctx.arc(0,0,orb.r*2.2,0,TAU); ctx.fillStyle=gl; ctx.fill();
-    // 榴莲主体（旋转）
-    ctx.rotate(durianAngle*1.5 + i*TAU/Math.max(1,durianOrbs.length));
-    if(evolved){
-      // 进化：橙红色炸弹
-      const g2=ctx.createRadialGradient(-orb.r*.3,-orb.r*.3,0,0,0,orb.r);
-      g2.addColorStop(0,'#ff8c00'); g2.addColorStop(1,'#cc3300');
-      ctx.beginPath(); ctx.arc(0,0,orb.r,0,TAU); ctx.fillStyle=g2; ctx.fill();
-      // 火焰刺
-      for(let s=0;s<6;s++){
-        const sa=TAU/6*s;
-        ctx.beginPath(); ctx.moveTo(Math.cos(sa)*orb.r,Math.sin(sa)*orb.r);
-        ctx.lineTo(Math.cos(sa)*(orb.r+8),Math.sin(sa)*(orb.r+8));
-        ctx.strokeStyle='#ff6600'; ctx.lineWidth=2.5; ctx.stroke();
-      }
-    } else {
-      // 普通：绿色榴莲
-      const g2=ctx.createRadialGradient(-orb.r*.3,-orb.r*.3,0,0,0,orb.r);
-      g2.addColorStop(0,'#c8ff50'); g2.addColorStop(1,'#5a9a00');
-      ctx.beginPath(); ctx.arc(0,0,orb.r,0,TAU); ctx.fillStyle=g2; ctx.fill();
-      // 尖刺
-      for(let s=0;s<8;s++){
-        const sa=TAU/8*s;
-        ctx.beginPath(); ctx.moveTo(Math.cos(sa)*orb.r,Math.sin(sa)*orb.r);
-        ctx.lineTo(Math.cos(sa)*(orb.r+7),Math.sin(sa)*(orb.r+7));
-        ctx.strokeStyle='#7acc00'; ctx.lineWidth=2; ctx.stroke();
-      }
-    }
-    if(orb.flashTimer>0){ ctx.beginPath();ctx.arc(0,0,orb.r,0,TAU);ctx.fillStyle='rgba(255,255,255,0.5)';ctx.fill(); }
+    const lg=ctx.createRadialGradient(lb.x,lb.y,0,lb.x,lb.y,lb.r*3);
+    lg.addColorStop(0,`rgba(255,255,100,${t*0.5})`);lg.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(lb.x,lb.y,lb.r*3,0,TAU);ctx.fillStyle=lg;ctx.fill();
     ctx.restore();
   });
 
-  // ── 飞斧渲染 ──
-  axeProjectiles.forEach(a=>{
-    ctx.save(); ctx.translate(a.x, a.y);
-    ctx.rotate(a.spinAngle);
-    const evolved = a.evolved;
-    const r = a.r;
-    // 斧柄
-    ctx.fillStyle = evolved ? '#8b0000' : '#6b3a2a';
-    ctx.fillRect(-r*0.15, -r*0.1, r*0.3, r*1.1);
-    // 斧头
-    const g2=ctx.createRadialGradient(-r*.2,-r*.2,0,0,0,r);
-    g2.addColorStop(0, evolved?'#ff4444':'#e0c080');
-    g2.addColorStop(1, evolved?'#880000':'#8b6914');
-    ctx.beginPath();
-    ctx.moveTo(-r*.15, -r*.5);
-    ctx.lineTo(-r, -r*.1);
-    ctx.lineTo(-r*.8,  r*.4);
-    ctx.lineTo( r*.15,-r*.5);
-    ctx.closePath();
-    ctx.fillStyle=g2; ctx.fill();
-    ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=1; ctx.stroke();
-    if(evolved){
-      // 进化：红色光晕
-      const eg=ctx.createRadialGradient(0,0,0,0,0,r*2);
-      eg.addColorStop(0,'rgba(255,50,0,0.4)'); eg.addColorStop(1,'transparent');
-      ctx.beginPath(); ctx.arc(0,0,r*2,0,TAU); ctx.fillStyle=eg; ctx.fill();
-    }
+  // ── 国王圣经环绕 ──
+  bibleOrbs.forEach(orb=>{
+    if(!orb.x) return;
+    ctx.save(); ctx.translate(orb.x,orb.y);
+    ctx.rotate(bibleAngle*2);
+    // 书本形状
+    const evolved=player.weapons.find(w=>w.defId==='bible')?.evolved;
+    const r=orb.r;
+    const bg2=ctx.createRadialGradient(-r*.2,-r*.2,0,0,0,r);
+    bg2.addColorStop(0,evolved?'#4444ff':'#f9ca24'); bg2.addColorStop(1,evolved?'#000088':'#c4960e');
+    ctx.beginPath();ctx.roundRect(-r*0.8,-r*0.6,r*1.6,r*1.2,3);ctx.fillStyle=bg2;ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.5)';ctx.lineWidth=1.5;ctx.stroke();
+    // 光晕
+    const og=ctx.createRadialGradient(0,0,0,0,0,r*2);
+    og.addColorStop(0,(evolved?'rgba(80,80,255,':'rgba(249,202,36,')+'0.3)');og.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(0,0,r*2,0,TAU);ctx.fillStyle=og;ctx.fill();
     ctx.restore();
   });
+
+  // ── 飞鸟 ──
+  const birdColors=['#ffffff','#2d3436'];
+  ['peachone','ebonywings','vandalier'].forEach((id,idx)=>{
+    const wi=player.weapons.find(w=>w.defId===id);
+    if(!wi) return;
+    const bi=idx===2?0:idx;
+    const bx=player.x+Math.cos(birdAngle[bi])*(160+(wi.bonusRange||0))*playerStats.area;
+    const by=player.y+Math.sin(birdAngle[bi])*(160+(wi.bonusRange||0))*playerStats.area;
+    ctx.save(); ctx.translate(bx,by);
+    ctx.font=`${22+(wi.bonusR||0)}px serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(id==='vandalier'?'🦚':idx===0?'🕊️':'🐦',0,0);
+    ctx.restore();
+  });
+  birdBombs.forEach(b=>{
+    const t=b.life/b.maxLife;
+    const bg3=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r*2);
+    bg3.addColorStop(0,`rgba(255,255,255,${t*0.7})`);bg3.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(b.x,b.y,b.r*2,0,TAU);ctx.fillStyle=bg3;ctx.fill();
+  });
+
+  // ── 子弹中的斧头和回旋镖特殊渲染 ──
+  // (在下方 bullets 渲染循环中处理)
 
   // enemies
   enemies.forEach(e=>{
@@ -3154,6 +3414,8 @@ function gameLoop(ts){
   if(gState==='play'){
     gameTime+=dt;
     updatePlayer(dt); updateWeapons(dt); updateBullets(dt);
+    shockRingTime+=dt;
+    updateBibleOrbs(dt); updateGarlicAura(dt); updateHolyWater(dt); updateLightning(dt); updateBirds(dt);
     updateOrbitalSatellites(dt); updateDurianOrbs(dt); updateAxeProjectiles(dt);
     updateEnemies(dt); updateGems(dt); updateFragPickups(dt);
     updateParticles(dt); updateShockwaves(dt); updateArena(dt); updateBossDropItems(dt); updateBlueprintPickups(dt); updateEquipDrops(dt); updateSpawner(dt);
@@ -3214,6 +3476,12 @@ function startGame(){
   wave=1;waveTimer=0;spawnTimer=0.1; bossesDefeated=0;
   bullets=[];enemies=[];gems=[];particles=[];shockwaves=[];fragPickups=[];orbitalSatellites=[];bossDropItems=[];blueprintPickups=[];equipDrops=[];runEquips=[];
   durianOrbs=[]; axeProjectiles=[]; durianAngle=0;
+  bibleOrbs=[]; bibleAngle=0; waterZones=[]; waterCooldown=0;
+  lightningCooldown=0; lightningBolts=[]; birdBombs=[]; birdAngle=[0,Math.PI];
+  birdCooldowns={peachone:0,ebonywings:0}; garlicAura={hitCooldowns:{},timer:0};
+  // 重置被动属性
+  playerPassives={};
+  playerStats={might:1,cooldown:1,area:1,speed:1,duration:1,amount:0,regen:0,gold:1,xpGain:1,pickup:0,revive:0,luck:0,armor:0};
   arena.active=false; arena.r=0; arena.bossUid=-1;
   shockRingTime=0;
   levelUpQueue=0;levelUpActive=false;_uid=0; gState='play';
@@ -3235,10 +3503,7 @@ function startGame(){
   if(save.shopPurchased['extraHp50']){player.hp+=50;player.maxHp+=50;}
   if(save.shopPurchased['startWithGem']) player.pickupRange+=80;
   if(save.shopPurchased['startRegen'])   player.hpRegen+=2;
-  player.weapons.push(createWeapon('pistol'));
-  if(save.shopPurchased['startPistolLv2']){
-    const w=player.weapons[0]; w.level=2; w.bonusDmg+=WEAPON_DEFS.pistol.damage*.22; w.bonusRate+=.18;
-  }
+  player.weapons.push(createWeapon('wand')); // 初始武器：魔杖
   cam.x=player.x; cam.y=player.y;
   genMap(); updateHUD(); updateWeaponUI();
   document.getElementById('waveVal').textContent=1;

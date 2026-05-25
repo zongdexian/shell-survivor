@@ -4920,7 +4920,7 @@ function render(){
     ctx.ellipse(0,p.r*0.55,p.r*0.95,p.r*0.28,0,0,TAU);
     ctx.fillStyle='rgba(0,0,0,.40)'; ctx.fill();
     // 脚下血条
-    const bw=p.r*3.2, bh=4, by=p.r+8;
+    const bw=p.r*2.0, bh=3, by=p.r+6;
     const pct=clamp(p.hp/p.maxHp,0,1);
     ctx.fillStyle='rgba(0,0,0,.6)';
     ctx.beginPath();ctx.roundRect(-bw/2,by,bw,bh,2);ctx.fill();
@@ -4934,7 +4934,10 @@ function render(){
       const breathY=Math.sin(_breathPhase*1.4)*1.8;
       const bsY=1.0+Math.sin(_breathPhase*1.4)*0.025;
       const bsX=1.0-Math.sin(_breathPhase*1.4)*0.012;
-      const drawW=p.r*2.5*bsX;
+      // 视觉比例1:1：普通怪物r≈6~7，emoji显示约12~14px
+      // 玩家图片高宽比122/80≈1.525，目标drawH≈14px → drawW≈9
+      // 用 p.r * 1.6 → drawW=14.4，视觉与zombie基本持平
+      const drawW=p.r*1.6*bsX;
       const drawH=(PLAYER_IMG_H/PLAYER_IMG_W)*drawW*bsY;
       const drawX=-drawW/2;
       const drawY=-drawH+p.r*0.5+breathY;

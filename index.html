@@ -24,7 +24,7 @@
 html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:'Courier New',monospace;color:#fff;touch-action:none;}
 
 /* ===== APP SHELL ===== */
-/* 全局以 390×844 为基准，在桌面端居中显示 */
+/* 全局以 1080×1920 为基准（标准 9:16），在桌面端居中显示 */
 #app{
   position:fixed;inset:0;
   display:flex;align-items:center;justify-content:center;
@@ -32,14 +32,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 }
 #phoneFrame{
   position:relative;
-  width:390px;height:844px;
+  width:1080px;height:1920px;
   overflow:hidden;
   background:#0a0a0f;
   /* 在PC上显示手机边框感 */
-  box-shadow:0 0 0 2px #222, 0 0 40px #0005;
+  box-shadow:0 0 0 6px #222, 0 0 111px #0005;
 }
-/* 响应式缩放：如果视口小于390px或844px，等比缩小 */
-@media (max-height:844px){
+/* 响应式缩放：如果视口小于1080px或1920px，等比缩小 */
+@media (max-height:1920px){
   #phoneFrame{transform-origin:top center;}
 }
 
@@ -54,17 +54,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 #statusBar{
   position:absolute;top:0;left:0;right:0;
   display:flex;align-items:center;justify-content:space-between;
-  padding:max(44px,calc(env(safe-area-inset-top)+10px)) 14px 10px;
+  padding:max(122px,calc(env(safe-area-inset-top)+28px)) 39px 28px;
   background:linear-gradient(to bottom,rgba(0,0,0,.75) 60%,transparent);
   z-index:10;pointer-events:none;
   flex-shrink:0;
 }
-#statusBar h1{color:#fff;font-size:17px;font-weight:bold;letter-spacing:2px;pointer-events:none;}
-.res-chips{display:flex;gap:6px;pointer-events:none;}
+#statusBar h1{color:#fff;font-size:47px;font-weight:bold;letter-spacing:6px;pointer-events:none;}
+.res-chips{display:flex;gap:17px;pointer-events:none;}
 .res-chip{
-  display:flex;align-items:center;gap:3px;
-  background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);border-radius:20px;
-  padding:3px 9px;font-size:11px;font-weight:bold;color:#f9ca24;
+  display:flex;align-items:center;gap:8px;
+  background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);border-radius:55px;
+  padding:8px 25px;font-size:30px;font-weight:bold;color:#f9ca24;
 }
 
 /* Tab content area */
@@ -81,16 +81,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 }
 .nav-btn{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:10px 0 8px;cursor:pointer;border:none;background:transparent;
-  color:#555;font-size:9px;letter-spacing:.5px;gap:3px;
+  padding:28px 0 22px;cursor:pointer;border:none;background:transparent;
+  color:#555;font-size:25px;letter-spacing:.14px;gap:8px;
   transition:color .15s;
 }
-.nav-btn .nav-icon{font-size:22px;line-height:1;}
+.nav-btn .nav-icon{font-size:61px;line-height:1;}
 .nav-btn.active{color:#f9ca24;}
-.nav-btn.active .nav-icon{filter:drop-shadow(0 0 4px #f9ca24aa);}
+.nav-btn.active .nav-icon{filter:drop-shadow(0 0 11px #f9ca24aa);}
 
 /* Section title */
-.sec-title{font-size:13px;font-weight:bold;color:#f9ca24;border-left:3px solid #f9ca24;padding-left:8px;margin:0 0 12px;}
+.sec-title{font-size:36px;font-weight:bold;color:#f9ca24;border-left:8px solid #f9ca24;padding-left:22px;margin:0 0 33px;}
 
 /* ══════════════════════════════════════════
    出击 Tab — 参考截图重做
@@ -116,37 +116,37 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 }
 /* 关卡名徽章 — 叠在地图中央偏上 */
 .mission-map-badge{
-  position:absolute;top:16px;left:50%;transform:translateX(-50%);
-  background:rgba(0,0,0,.7);border:1.5px solid rgba(255,255,255,.2);
-  border-radius:20px;padding:5px 18px;
-  font-size:14px;font-weight:bold;color:#fff;white-space:nowrap;
+  position:absolute;top:44px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.7);border:4px solid rgba(255,255,255,.2);
+  border-radius:55px;padding:14px 50px;
+  font-size:39px;font-weight:bold;color:#fff;white-space:nowrap;
   z-index:2;
 }
 /* 选择关卡箭头 */
 .mission-map-arrows{
   position:absolute;top:50%;transform:translateY(-50%);
   width:100%;display:flex;justify-content:space-between;
-  padding:0 12px;pointer-events:none;z-index:2;
+  padding:0 33px;pointer-events:none;z-index:2;
 }
 .map-arrow{
-  width:36px;height:36px;border-radius:50%;
-  background:rgba(0,0,0,.5);border:1.5px solid rgba(255,255,255,.25);
+  width:100px;height:100px;border-radius:50%;
+  background:rgba(0,0,0,.5);border:4px solid rgba(255,255,255,.25);
   display:flex;align-items:center;justify-content:center;
-  font-size:18px;color:#fff;pointer-events:all;cursor:pointer;
+  font-size:50px;color:#fff;pointer-events:all;cursor:pointer;
   flex-shrink:0;
 }
 .map-arrow:active{background:rgba(255,255,255,.15);}
 /* 关卡指示点 */
 .mission-dots{
-  position:absolute;bottom:14px;left:0;right:0;
-  display:flex;justify-content:center;gap:6px;z-index:2;
+  position:absolute;bottom:39px;left:0;right:0;
+  display:flex;justify-content:center;gap:17px;z-index:2;
 }
 .mission-dot{
-  width:6px;height:6px;border-radius:50%;
+  width:17px;height:17px;border-radius:50%;
   background:rgba(255,255,255,.3);transition:all .2s;
 }
 .mission-dot.active{
-  width:18px;border-radius:3px;
+  width:50px;border-radius:8px;
   background:#f9ca24;
 }
 /* 锁定遮罩 */
@@ -154,48 +154,48 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
   position:absolute;inset:0;
   background:rgba(0,0,0,.55);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:8px;z-index:3;
+  gap:22px;z-index:3;
 }
 .mission-lock-mask.hidden{display:none;}
-.mission-lock-icon{font-size:40px;}
-.mission-lock-text{color:#fff;font-size:13px;font-weight:bold;}
-.mission-lock-req{color:#f9ca24;font-size:11px;}
+.mission-lock-icon{font-size:111px;}
+.mission-lock-text{color:#fff;font-size:36px;font-weight:bold;}
+.mission-lock-req{color:#f9ca24;font-size:30px;}
 
 /* 底部信息卡片 */
 .mission-info-card{
   flex-shrink:0;
   background:#111;
   border-top:1px solid rgba(255,255,255,.08);
-  padding:16px 16px 10px;
+  padding:44px 44px 28px;
 }
-.mic-top{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
-.mic-icon{font-size:36px;flex-shrink:0;}
+.mic-top{display:flex;align-items:center;gap:33px;margin-bottom:28px;}
+.mic-icon{font-size:100px;flex-shrink:0;}
 .mic-text{flex:1;}
-.mic-name{font-size:16px;font-weight:bold;color:#fff;margin-bottom:3px;}
-.mic-tags{display:flex;gap:6px;flex-wrap:wrap;}
+.mic-name{font-size:44px;font-weight:bold;color:#fff;margin-bottom:8px;}
+.mic-tags{display:flex;gap:17px;flex-wrap:wrap;}
 .mic-tag{
-  font-size:10px;padding:2px 8px;border-radius:10px;
+  font-size:28px;padding:6px 22px;border-radius:28px;
   background:rgba(255,255,255,.08);color:#aaa;
 }
 .mic-tag.diff-normal{background:rgba(46,204,113,.15);color:#2ecc71;}
 .mic-tag.diff-hard  {background:rgba(241,196,15,.15);color:#f1c40f;}
 .mic-tag.diff-boss  {background:rgba(231,76,60,.15);color:#e74c3c;}
-.mic-rewards{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.mic-rewards{display:flex;gap:22px;margin-bottom:33px;flex-wrap:wrap;}
 .mic-reward-chip{
-  font-size:10px;color:#bbb;
+  font-size:28px;color:#bbb;
   background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
-  border-radius:12px;padding:3px 10px;
-  display:flex;align-items:center;gap:4px;
+  border-radius:33px;padding:8px 28px;
+  display:flex;align-items:center;gap:11px;
 }
 
 /* 出击大按钮 */
 .btn-go{
   display:block;width:100%;
-  padding:16px;
+  padding:44px;
   background:linear-gradient(135deg,#f9ca24,#f0932b);
-  color:#111;font-size:18px;font-weight:bold;
-  border:none;border-radius:14px;letter-spacing:3px;
-  box-shadow:0 4px 20px rgba(249,202,36,.35);
+  color:#111;font-size:50px;font-weight:bold;
+  border:none;border-radius:39px;letter-spacing:8px;
+  box-shadow:0 11px 55px rgba(249,202,36,.35);
 }
 .btn-go:active{transform:scale(.97);}
 .btn-go.locked{
@@ -206,83 +206,83 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 /* ── 特工 Tab ── */
 .agent-hero{
   background:linear-gradient(135deg,#1a1a3e,#16213e);
-  border:1px solid #333;border-radius:14px;
-  padding:16px;text-align:center;margin-bottom:14px;
-  display:flex;align-items:center;gap:14px;
+  border:1px solid #333;border-radius:39px;
+  padding:44px;text-align:center;margin-bottom:39px;
+  display:flex;align-items:center;gap:39px;
 }
-.agent-avatar{font-size:56px;}
+.agent-avatar{font-size:155px;}
 .agent-meta{text-align:left;}
-.agent-name{font-size:16px;font-weight:bold;}
-.agent-stars{color:#f9ca24;font-size:18px;margin:3px 0;}
-.agent-lv{color:#aaa;font-size:11px;}
+.agent-name{font-size:44px;font-weight:bold;}
+.agent-stars{color:#f9ca24;font-size:50px;margin:8px 0;}
+.agent-lv{color:#aaa;font-size:30px;}
 
 .stat-card{
-  background:#111;border:1px solid #1a1a1a;border-radius:12px;
-  padding:13px 14px;margin-bottom:8px;
-  display:flex;align-items:center;gap:12px;
+  background:#111;border:1px solid #1a1a1a;border-radius:33px;
+  padding:36px 39px;margin-bottom:22px;
+  display:flex;align-items:center;gap:33px;
 }
-.stat-ico{font-size:24px;flex-shrink:0;}
+.stat-ico{font-size:66px;flex-shrink:0;}
 .stat-body{flex:1;}
-.stat-lbl{font-size:11px;color:#888;}
-.stat-val{font-size:15px;font-weight:bold;}
-.stat-bonus{font-size:10px;color:#55efc4;margin-top:1px;}
+.stat-lbl{font-size:30px;color:#888;}
+.stat-val{font-size:42px;font-weight:bold;}
+.stat-bonus{font-size:28px;color:#55efc4;margin-top:1px;}
 .btn-upg{
-  padding:9px 16px;background:linear-gradient(135deg,#6c5ce7,#a29bfe);
-  color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:bold;
+  padding:25px 44px;background:linear-gradient(135deg,#6c5ce7,#a29bfe);
+  color:#fff;border:none;border-radius:22px;font-size:33px;font-weight:bold;
   white-space:nowrap;flex-shrink:0;
 }
 .btn-upg:active{transform:scale(.95);}
 .btn-upg:disabled{background:#2a2a2a;color:#555;}
-.upg-cost{font-size:9px;color:#f9ca24;text-align:center;margin-top:3px;}
+.upg-cost{font-size:25px;color:#f9ca24;text-align:center;margin-top:8px;}
 
 /* ── 角色 Tab ── */
-.char-layout{display:flex;flex-direction:column;gap:14px;}
+.char-layout{display:flex;flex-direction:column;gap:39px;}
 /* 装备人形图 */
 .char-mannequin{
   background:linear-gradient(135deg,#1a1a2e,#16213e);
-  border:1px solid #2a2a4e;border-radius:14px;
-  padding:14px;position:relative;
+  border:1px solid #2a2a4e;border-radius:39px;
+  padding:39px;position:relative;
 }
-.char-title{font-size:13px;font-weight:bold;color:#f9ca24;margin-bottom:12px;text-align:center;}
+.char-title{font-size:36px;font-weight:bold;color:#f9ca24;margin-bottom:33px;text-align:center;}
 .mannequin-grid{
   display:grid;
-  grid-template-columns:56px 80px 56px;
-  grid-template-rows:repeat(4,52px);
-  gap:6px;justify-content:center;align-items:center;
+  grid-template-columns:155px 222px 155px;
+  grid-template-rows:repeat(4,144px);
+  gap:17px;justify-content:center;align-items:center;
 }
 .equip-slot{
-  width:52px;height:48px;
-  background:rgba(0,0,0,.4);border:1.5px dashed #333;border-radius:8px;
+  width:144px;height:133px;
+  background:rgba(0,0,0,.4);border:4px dashed #333;border-radius:22px;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   cursor:pointer;position:relative;transition:border-color .15s;
 }
 .equip-slot:active{border-color:#f9ca24;}
 .equip-slot.filled{border-style:solid;border-color:#555;}
 .equip-slot.filled.rarity-common{border-color:#95a5a6;}
-.equip-slot.filled.rarity-rare  {border-color:#3498db;box-shadow:0 0 6px #3498db44;}
-.equip-slot.filled.rarity-epic  {border-color:#9b59b6;box-shadow:0 0 6px #9b59b644;}
-.equip-slot.filled.rarity-legend{border-color:#f9ca24;box-shadow:0 0 8px #f9ca2455;}
-.equip-slot-ico{font-size:20px;line-height:1;}
-.equip-slot-lbl{font-size:8px;color:#888;margin-top:2px;}
-.equip-slot-name{font-size:7px;color:#ccc;margin-top:1px;text-align:center;max-width:50px;white-space:nowrap;overflow:hidden;}
+.equip-slot.filled.rarity-rare  {border-color:#3498db;box-shadow:0 0 17px #3498db44;}
+.equip-slot.filled.rarity-epic  {border-color:#9b59b6;box-shadow:0 0 17px #9b59b644;}
+.equip-slot.filled.rarity-legend{border-color:#f9ca24;box-shadow:0 0 22px #f9ca2455;}
+.equip-slot-ico{font-size:55px;line-height:1;}
+.equip-slot-lbl{font-size:22px;color:#888;margin-top:6px;}
+.equip-slot-name{font-size:19px;color:#ccc;margin-top:1px;text-align:center;max-width:138px;white-space:nowrap;overflow:hidden;}
 .char-center{display:flex;align-items:center;justify-content:center;}
-.char-avatar-big{font-size:52px;line-height:1;}
+.char-avatar-big{font-size:144px;line-height:1;}
 /* 装备属性总览 */
 .equip-stats-bar{
-  display:grid;grid-template-columns:1fr 1fr;gap:6px;
-  background:#111;border:1px solid #1a1a1a;border-radius:10px;padding:10px 12px;
+  display:grid;grid-template-columns:1fr 1fr;gap:17px;
+  background:#111;border:1px solid #1a1a1a;border-radius:28px;padding:28px 33px;
 }
-.equip-stat-item{display:flex;align-items:center;gap:6px;font-size:11px;}
-.equip-stat-ico{font-size:14px;}
+.equip-stat-item{display:flex;align-items:center;gap:17px;font-size:30px;}
+.equip-stat-ico{font-size:39px;}
 .equip-stat-val{color:#55efc4;font-weight:bold;}
 /* 背包 */
-.inventory-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
-.inv-title{font-size:13px;font-weight:bold;color:#f9ca24;}
-.inv-count{font-size:10px;color:#888;}
-.inventory-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:320px;overflow-y:auto;}
+.inventory-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}
+.inv-title{font-size:36px;font-weight:bold;color:#f9ca24;}
+.inv-count{font-size:28px;color:#888;}
+.inventory-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;max-height:886px;overflow-y:auto;}
 .inv-item{
-  background:#111;border:1.5px solid #222;border-radius:10px;
-  padding:10px 6px;text-align:center;cursor:pointer;
+  background:#111;border:4px solid #222;border-radius:28px;
+  padding:28px 17px;text-align:center;cursor:pointer;
   transition:border-color .15s,transform .1s;position:relative;
 }
 .inv-item:active{transform:scale(.96);}
@@ -291,93 +291,93 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 .inv-item.rarity-epic  {border-color:#9b59b6;}
 .inv-item.rarity-legend{border-color:#f9ca24;}
 .inv-item.equipped{opacity:.5;}
-.inv-ico{font-size:26px;margin-bottom:4px;}
-.inv-name{font-size:9px;font-weight:bold;color:#ddd;line-height:1.3;}
-.inv-rar{font-size:8px;margin-top:2px;}
-.inv-stat{font-size:9px;color:#55efc4;margin-top:3px;}
+.inv-ico{font-size:72px;margin-bottom:11px;}
+.inv-name{font-size:25px;font-weight:bold;color:#ddd;line-height:1.3;}
+.inv-rar{font-size:22px;margin-top:6px;}
+.inv-stat{font-size:25px;color:#55efc4;margin-top:8px;}
 .inv-equip-badge{
-  position:absolute;top:3px;right:4px;
-  font-size:7px;background:#f9ca24;color:#111;
-  border-radius:4px;padding:1px 3px;font-weight:bold;
+  position:absolute;top:8px;right:11px;
+  font-size:19px;background:#f9ca24;color:#111;
+  border-radius:11px;padding:1px 8px;font-weight:bold;
 }
 /* 装备详情弹窗 */
 #equipModal{
   position:absolute;inset:0;background:rgba(0,0,0,.88);
   display:none;flex-direction:column;align-items:center;justify-content:center;
-  z-index:50;padding:20px;pointer-events:all;
+  z-index:50;padding:55px;pointer-events:all;
 }
 .modal-card{
-  width:100%;max-width:300px;
+  width:100%;max-width:831px;
   background:linear-gradient(135deg,#1a1a2e,#16213e);
-  border-radius:16px;padding:20px;
+  border-radius:44px;padding:55px;
 }
-.modal-ico{font-size:48px;text-align:center;margin-bottom:8px;}
-.modal-name{font-size:16px;font-weight:bold;text-align:center;margin-bottom:4px;}
-.modal-rar{font-size:11px;text-align:center;margin-bottom:12px;}
+.modal-ico{font-size:133px;text-align:center;margin-bottom:22px;}
+.modal-name{font-size:44px;font-weight:bold;text-align:center;margin-bottom:11px;}
+.modal-rar{font-size:30px;text-align:center;margin-bottom:33px;}
 .modal-stat{
-  background:#111;border-radius:8px;padding:10px 14px;
-  font-size:13px;margin-bottom:14px;
-  display:flex;align-items:center;gap:8px;
+  background:#111;border-radius:22px;padding:28px 39px;
+  font-size:36px;margin-bottom:39px;
+  display:flex;align-items:center;gap:22px;
 }
-.modal-btns{display:flex;gap:8px;}
+.modal-btns{display:flex;gap:22px;}
 .btn-equip{
-  flex:1;padding:12px;background:linear-gradient(135deg,#f9ca24,#f0932b);
-  color:#111;font-weight:bold;font-size:14px;
-  border:none;border-radius:10px;cursor:pointer;
+  flex:1;padding:33px;background:linear-gradient(135deg,#f9ca24,#f0932b);
+  color:#111;font-weight:bold;font-size:39px;
+  border:none;border-radius:28px;cursor:pointer;
 }
 .btn-unequip{
-  flex:1;padding:12px;background:linear-gradient(135deg,#636e72,#b2bec3);
-  color:#111;font-weight:bold;font-size:14px;
-  border:none;border-radius:10px;cursor:pointer;
+  flex:1;padding:33px;background:linear-gradient(135deg,#636e72,#b2bec3);
+  color:#111;font-weight:bold;font-size:39px;
+  border:none;border-radius:28px;cursor:pointer;
 }
 .btn-discard{
-  padding:12px 16px;background:#2d2d2d;border:1px solid #444;
-  color:#e17055;font-size:13px;border-radius:10px;cursor:pointer;
+  padding:33px 44px;background:#2d2d2d;border:1px solid #444;
+  color:#e17055;font-size:36px;border-radius:28px;cursor:pointer;
 }
 .btn-close-modal{
-  width:100%;margin-top:8px;padding:10px;
+  width:100%;margin-top:22px;padding:28px;
   background:transparent;border:1px solid #333;
-  color:#888;font-size:13px;border-radius:10px;cursor:pointer;
+  color:#888;font-size:36px;border-radius:28px;cursor:pointer;
 }
 
 /* ── 图纸 Tab ── */
-.bp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.bp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;}
 .bp-card{
-  background:#111;border:1px solid #222;border-radius:10px;
-  padding:12px 8px;text-align:center;
+  background:#111;border:1px solid #222;border-radius:28px;
+  padding:33px 22px;text-align:center;
 }
 .bp-card.owned{border-color:#55efc4;}
-.bp-ico{font-size:28px;margin-bottom:5px;}
-.bp-nm{font-size:10px;font-weight:bold;margin-bottom:3px;}
-.bp-rar{font-size:9px;}
-.bp-cnt{color:#f9ca24;font-size:11px;font-weight:bold;margin-top:3px;}
+.bp-ico{font-size:78px;margin-bottom:14px;}
+.bp-nm{font-size:28px;font-weight:bold;margin-bottom:8px;}
+.bp-rar{font-size:25px;}
+.bp-cnt{color:#f9ca24;font-size:30px;font-weight:bold;margin-top:8px;}
 .rarity-common{color:#95a5a6;}
 .rarity-rare{color:#3498db;}
 .rarity-epic{color:#9b59b6;}
 .rarity-legend{color:#f9ca24;}
 
 /* ── 商店 Tab ── */
-.shop-list{display:flex;flex-direction:column;gap:10px;}
+.shop-list{display:flex;flex-direction:column;gap:28px;}
 .shop-card{
-  background:#111;border:1px solid #222;border-radius:12px;
-  padding:13px 14px;display:flex;align-items:center;gap:12px;
+  background:#111;border:1px solid #222;border-radius:33px;
+  padding:36px 39px;display:flex;align-items:center;gap:33px;
 }
-.shop-ico{font-size:32px;flex-shrink:0;}
+.shop-ico{font-size:89px;flex-shrink:0;}
 .shop-body{flex:1;}
-.shop-nm{font-size:13px;font-weight:bold;margin-bottom:3px;}
-.shop-desc{font-size:10px;color:#888;line-height:1.4;}
+.shop-nm{font-size:36px;font-weight:bold;margin-bottom:8px;}
+.shop-desc{font-size:28px;color:#888;line-height:1.4;}
 .btn-buy{
-  padding:9px 14px;background:linear-gradient(135deg,#00b894,#55efc4);
-  color:#111;border:none;border-radius:8px;font-size:12px;font-weight:bold;
+  padding:25px 39px;background:linear-gradient(135deg,#00b894,#55efc4);
+  color:#111;border:none;border-radius:22px;font-size:33px;font-weight:bold;
   white-space:nowrap;flex-shrink:0;
 }
 .btn-buy:active{transform:scale(.95);}
 .btn-buy:disabled{background:#1a1a1a;color:#444;}
-.shop-owned{font-size:10px;color:#55efc4;text-align:center;margin-top:3px;}
+.shop-owned{font-size:28px;color:#55efc4;text-align:center;margin-top:8px;}
 
 /* ===== GAME SCREEN ===== */
 #gameScreen{background:#000;align-items:center;justify-content:center;}
-#gameCanvas{display:block;width:390px;height:844px;}
+#gameCanvas{display:block;width:1080px;height:1920px;}
 
 /* Game UI overlay */
 #gameUI{position:absolute;inset:0;pointer-events:none;}
@@ -395,30 +395,30 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 /* ── 计时器：经验条正上方居中，独立定位 ── */
 #timerBadge{
   position:absolute;
-  /* 经验条在 max(76px,…)，计时器紧贴其上方 */
-  bottom:calc(100% - max(76px, calc(env(safe-area-inset-top) + 40px)));
-  top:max(44px, calc(env(safe-area-inset-top) + 8px));
+  /* 经验条在 max(210px,…)，计时器紧贴其上方 */
+  bottom:calc(100% - max(210px, calc(env(safe-area-inset-top) + 111px)));
+  top:max(122px, calc(env(safe-area-inset-top) + 22px));
   left:0;right:0;
   display:flex;align-items:flex-end;justify-content:center;
   pointer-events:none;z-index:4;
-  padding-bottom:4px;
+  padding-bottom:11px;
 }
 #timerVal{
   color:#fff;
-  font-size:26px;font-weight:bold;
+  font-size:72px;font-weight:bold;
   font-variant-numeric:tabular-nums;
-  letter-spacing:2px;line-height:1;
-  text-shadow:0 2px 10px rgba(0,0,0,.9);
+  letter-spacing:6px;line-height:1;
+  text-shadow:0 6px 28px rgba(0,0,0,.9);
 }
 #timerLbl{ display:none; }
 
 /* ── 顶部信息行：等级(左) + 资源(右)，经验条上方 ── */
 #hudTop{
   position:absolute;top:0;left:0;right:0;
-  padding-top:max(46px, calc(env(safe-area-inset-top) + 10px));
-  padding-bottom:5px;
-  padding-left:12px;
-  padding-right:50px;
+  padding-top:max(127px, calc(env(safe-area-inset-top) + 28px));
+  padding-bottom:14px;
+  padding-left:33px;
+  padding-right:138px;
   display:flex;align-items:center;
   pointer-events:none;z-index:3;
 }
@@ -426,34 +426,34 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 #lvBadge{
   background:rgba(0,0,0,.6);
   border:1px solid rgba(249,202,36,.45);
-  border-radius:20px;
-  padding:3px 10px;
-  font-size:11px;font-weight:bold;color:#f9ca24;
+  border-radius:55px;
+  padding:8px 28px;
+  font-size:30px;font-weight:bold;color:#f9ca24;
   white-space:nowrap;
 }
 #hudCenter{ flex:1; } /* 纯占位，计时器已独立定位 */
 #hudRight{
   margin-left:auto;
-  display:flex;align-items:center;gap:6px;flex-shrink:0;
+  display:flex;align-items:center;gap:17px;flex-shrink:0;
 }
 .rr-chip{
   background:rgba(0,0,0,.58);
   border:1px solid rgba(255,255,255,.14);
-  border-radius:14px;padding:3px 9px 3px 6px;
-  font-size:11px;font-weight:bold;
-  display:flex;align-items:center;gap:3px;color:#f9ca24;
+  border-radius:39px;padding:8px 25px 8px 17px;
+  font-size:30px;font-weight:bold;
+  display:flex;align-items:center;gap:8px;color:#f9ca24;
 }
-.rr-chip-icon{font-size:12px;line-height:1;}
+.rr-chip-icon{font-size:33px;line-height:1;}
 #runResBar{display:none;}
 
 /* ── 经验条：计时器下方紧贴 ── */
 #hudBars{
   position:absolute;left:0;right:0;
-  top:max(76px, calc(env(safe-area-inset-top) + 40px));
+  top:max(210px, calc(env(safe-area-inset-top) + 111px));
   pointer-events:none;z-index:3;
 }
 .bar-full-row{
-  width:100%;height:4px;
+  width:100%;height:11px;
   background:rgba(0,0,0,.4);
   overflow:hidden;
 }
@@ -469,45 +469,45 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 /* ── 武器&被动栏 — 底部固定，每行6格 ── */
 #weaponBar{
   position:absolute;
-  bottom:calc(env(safe-area-inset-bottom,0px)+10px);
+  bottom:calc(env(safe-area-inset-bottom,0px)+28px);
   left:0;right:0;
-  display:flex;flex-direction:column;gap:3px;
-  padding:0 8px;
+  display:flex;flex-direction:column;gap:8px;
+  padding:0 22px;
   pointer-events:none;
   z-index:2;
 }
 .wbar-row{
-  display:flex;gap:3px;justify-content:center;
+  display:flex;gap:8px;justify-content:center;
 }
 .wbar-row-label{
-  font-size:7px;color:rgba(255,255,255,0.35);
-  text-align:center;letter-spacing:.5px;margin-bottom:1px;
+  font-size:19px;color:rgba(255,255,255,0.35);
+  text-align:center;letter-spacing:.14px;margin-bottom:1px;
 }
 .weapon-slot{
-  width:46px;height:44px;
+  width:127px;height:122px;
   background:rgba(10,10,20,.78);
   border:1px solid rgba(255,255,255,.18);
-  border-radius:8px;
+  border-radius:22px;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  font-size:16px;position:relative;
+  font-size:44px;position:relative;
   flex-shrink:0;
 }
 .weapon-slot.w-evolved{
   border-color:#f9ca24;
-  box-shadow:0 0 6px #f9ca2444;
+  box-shadow:0 0 17px #f9ca2444;
 }
 .weapon-slot.p-slot{
   background:rgba(10,10,30,.65);
   border-color:rgba(162,155,254,.25);
-  font-size:14px;
+  font-size:39px;
 }
 .weapon-lvl{
-  position:absolute;bottom:1px;right:3px;
-  font-size:7px;color:#f9ca24;font-weight:bold;line-height:1;
+  position:absolute;bottom:1px;right:8px;
+  font-size:19px;color:#f9ca24;font-weight:bold;line-height:1;
 }
 .weapon-slot span{
-  font-size:7px;color:rgba(255,255,255,.6);margin-top:1px;
-  line-height:1;text-align:center;max-width:42px;
+  font-size:19px;color:rgba(255,255,255,.6);margin-top:1px;
+  line-height:1;text-align:center;max-width:116px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 
@@ -519,21 +519,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 }
 #joystickBase{
   position:absolute;
-  width:110px;height:110px;
+  width:305px;height:305px;
   border-radius:50%;
   background:rgba(255,255,255,.06);
-  border:2px solid rgba(255,255,255,.15);
+  border:6px solid rgba(255,255,255,.15);
   display:none;
   transform:translate(-50%,-50%);
 }
 #joystickKnob{
   position:absolute;
-  width:48px;height:48px;
+  width:133px;height:133px;
   border-radius:50%;
   background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.4),rgba(255,255,255,.15));
-  border:2px solid rgba(255,255,255,.4);
+  border:6px solid rgba(255,255,255,.4);
   transform:translate(-50%,-50%);
-  box-shadow:0 2px 12px rgba(0,0,0,.4);
+  box-shadow:0 6px 33px rgba(0,0,0,.4);
   top:50%;left:50%;
 }
 
@@ -549,34 +549,34 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
   70%{opacity:1;transform:translate(-50%,-50%) scale(1);}
   100%{opacity:0;transform:translate(-50%,-50%) scale(1);}
 }
-.wave-title{color:#f9ca24;font-size:24px;font-weight:bold;text-shadow:0 0 16px #f9ca24aa;letter-spacing:2px;}
-.wave-sub{color:#fff;font-size:12px;margin-top:3px;opacity:.8;}
+.wave-title{color:#f9ca24;font-size:66px;font-weight:bold;text-shadow:0 0 44px #f9ca24aa;letter-spacing:6px;}
+.wave-sub{color:#fff;font-size:33px;margin-top:8px;opacity:.8;}
 
 /* Dmg floaters */
 .dmg-text{
-  position:absolute;pointer-events:none;font-weight:bold;font-size:11px;
-  text-shadow:1px 1px 2px #000;animation:floatUp .8s ease-out forwards;white-space:nowrap;
+  position:absolute;pointer-events:none;font-weight:bold;font-size:30px;
+  text-shadow:1px 1px 6px #000;animation:floatUp .8s ease-out forwards;white-space:nowrap;
 }
 @keyframes floatUp{
   0%{opacity:1;transform:translateY(0) scale(1.1);}
-  100%{opacity:0;transform:translateY(-34px) scale(.75);}
+  100%{opacity:0;transform:translateY(-94px) scale(.75);}
 }
 
 /* ===== FULL-SCREEN OVERLAYS (game) ===== */
 .g-overlay{
   position:absolute;inset:0;display:flex;flex-direction:column;
   align-items:center;justify-content:center;
-  background:rgba(0,0,0,.88);pointer-events:all;padding:20px;
+  background:rgba(0,0,0,.88);pointer-events:all;padding:55px;
 }
-.g-title{font-size:26px;font-weight:bold;color:#f9ca24;text-shadow:0 0 16px #f9ca2455;margin-bottom:6px;letter-spacing:2px;}
-.g-subtitle{font-size:22px;font-weight:bold;color:#e17055;margin-bottom:6px;}
-.g-p{color:#888;font-size:12px;margin-bottom:14px;text-align:center;line-height:1.7;}
+.g-title{font-size:72px;font-weight:bold;color:#f9ca24;text-shadow:0 0 44px #f9ca2455;margin-bottom:17px;letter-spacing:6px;}
+.g-subtitle{font-size:61px;font-weight:bold;color:#e17055;margin-bottom:17px;}
+.g-p{color:#888;font-size:33px;margin-bottom:39px;text-align:center;line-height:1.7;}
 .g-btn{
-  width:100%;max-width:280px;padding:15px;
+  width:100%;max-width:775px;padding:42px;
   background:linear-gradient(135deg,#f9ca24,#f0932b);
-  color:#111;font-size:15px;font-weight:bold;
-  border:none;border-radius:12px;margin:5px 0;
-  letter-spacing:1px;box-shadow:0 4px 16px #f9ca2433;
+  color:#111;font-size:42px;font-weight:bold;
+  border:none;border-radius:33px;margin:14px 0;
+  letter-spacing:1px;box-shadow:0 11px 44px #f9ca2433;
 }
 .g-btn:active{transform:scale(.97);}
 .g-btn.secondary{background:linear-gradient(135deg,#636e72,#b2bec3);color:#111;box-shadow:none;}
@@ -609,21 +609,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 /* 顶部标题区 */
 .lu-hdr{
   background:#1a1d26;
-  padding:max(48px, calc(env(safe-area-inset-top) + 14px)) 16px 10px;
+  padding:max(133px, calc(env(safe-area-inset-top) + 39px)) 44px 28px;
   text-align:center;
   flex-shrink:0;
   border-bottom:1px solid #000;
 }
 .lu-hdr h3{
-  color:#fff;font-size:17px;font-weight:bold;
-  margin:0;letter-spacing:.5px;
+  color:#fff;font-size:47px;font-weight:bold;
+  margin:0;letter-spacing:.14px;
 }
-.lu-hdr p{color:#888;font-size:11px;margin-top:3px;}
-.lu-queue{color:#74b9ff;font-size:10px;margin-top:4px;}
+.lu-hdr p{color:#888;font-size:30px;margin-top:8px;}
+.lu-queue{color:#74b9ff;font-size:28px;margin-top:11px;}
 
 /* 金黄色经验进度条 */
 .lu-xp-bar-wrap{
-  width:100%;height:10px;
+  width:100%;height:28px;
   background:#111;
   flex-shrink:0;
 }
@@ -649,9 +649,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
   border:none;
   border-bottom:1px solid #000;
   border-radius:0;
-  padding:14px 16px;
+  padding:39px 44px;
   cursor:pointer;
-  display:flex;align-items:center;gap:14px;
+  display:flex;align-items:center;gap:39px;
   transition:background .1s;
   pointer-events:all;
   flex-shrink:0;
@@ -663,41 +663,41 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 /* 左侧：图标（圆形背景） */
 .card-icon{
   flex-shrink:0;
-  width:56px;height:56px;
-  border-radius:14px;
+  width:155px;height:155px;
+  border-radius:39px;
   background:#2e3350;
   display:flex;align-items:center;justify-content:center;
-  font-size:32px;
-  box-shadow:0 2px 8px rgba(0,0,0,.4);
+  font-size:89px;
+  box-shadow:0 6px 22px rgba(0,0,0,.4);
 }
 /* 稀有度图标背景色 */
-.card.rarity-rare   .card-icon{ background:#1a2a45;box-shadow:0 0 12px rgba(52,152,219,.3); }
-.card.rarity-epic   .card-icon{ background:#251a35;box-shadow:0 0 12px rgba(155,89,182,.35); }
-.card.rarity-legend .card-icon{ background:#302010;box-shadow:0 0 14px rgba(249,202,36,.4); }
+.card.rarity-rare   .card-icon{ background:#1a2a45;box-shadow:0 0 33px rgba(52,152,219,.3); }
+.card.rarity-epic   .card-icon{ background:#251a35;box-shadow:0 0 33px rgba(155,89,182,.35); }
+.card.rarity-legend .card-icon{ background:#302010;box-shadow:0 0 39px rgba(249,202,36,.4); }
 
 /* 中：文字区 */
 .card-body{flex:1;min-width:0;}
 .card-name{
-  font-size:15px;font-weight:bold;
-  color:#fff;margin-bottom:5px;
+  font-size:42px;font-weight:bold;
+  color:#fff;margin-bottom:14px;
 }
-.card-desc{font-size:11px;color:#8a8fa8;line-height:1.6;}
+.card-desc{font-size:30px;color:#8a8fa8;line-height:1.6;}
 .card-rarity{
   display:inline-block;
-  font-size:9px;font-weight:bold;letter-spacing:1px;
-  margin-top:6px;padding:2px 8px;border-radius:10px;
+  font-size:25px;font-weight:bold;letter-spacing:1px;
+  margin-top:17px;padding:6px 22px;border-radius:28px;
   background:rgba(255,255,255,.07);
 }
 
 /* 右侧：选择按钮 */
 .card-btn{
   flex-shrink:0;
-  width:36px;height:36px;
+  width:100px;height:100px;
   border-radius:50%;
   background:rgba(255,255,255,.08);
-  border:1.5px solid rgba(255,255,255,.2);
+  border:4px solid rgba(255,255,255,.2);
   display:flex;align-items:center;justify-content:center;
-  font-size:16px;color:rgba(255,255,255,.5);
+  font-size:44px;color:rgba(255,255,255,.5);
 }
 .card.rarity-rare   .card-btn{ border-color:#3498db55;color:#3498db; }
 .card.rarity-epic   .card-btn{ border-color:#9b59b655;color:#9b59b6; }
@@ -706,14 +706,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 /* Pause button */
 #pauseBtn{
   position:absolute;
-  top:max(44px, calc(env(safe-area-inset-top) + 8px));
-  right:10px;
-  width:32px;height:32px;
+  top:max(122px, calc(env(safe-area-inset-top) + 22px));
+  right:28px;
+  width:89px;height:89px;
   background:rgba(0,0,0,.50);
   border:1px solid rgba(255,255,255,.2);
-  border-radius:8px;
+  border-radius:22px;
   display:flex;align-items:center;justify-content:center;
-  font-size:14px;cursor:pointer;pointer-events:all;z-index:20;
+  font-size:39px;cursor:pointer;pointer-events:all;z-index:20;
   transition:background .15s;
 }
 #pauseBtn:active{background:rgba(255,255,255,.15);}
@@ -723,16 +723,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
   display:none;
   background:rgba(0,0,0,.88);
 }
-.pause-title{color:#f9ca24;font-size:28px;font-weight:bold;letter-spacing:3px;margin-bottom:6px;text-shadow:0 0 16px #f9ca2455;}
-.pause-subtitle{color:#888;font-size:12px;margin-bottom:28px;}
+.pause-title{color:#f9ca24;font-size:78px;font-weight:bold;letter-spacing:8px;margin-bottom:17px;text-shadow:0 0 44px #f9ca2455;}
+.pause-subtitle{color:#888;font-size:33px;margin-bottom:78px;}
 .pause-stats{
-  display:flex;flex-direction:column;gap:8px;
-  width:100%;max-width:260px;margin-bottom:24px;
+  display:flex;flex-direction:column;gap:22px;
+  width:100%;max-width:720px;margin-bottom:66px;
 }
 .pause-stat{
   display:flex;justify-content:space-between;
-  background:#111;border:1px solid #222;border-radius:8px;
-  padding:8px 14px;font-size:12px;color:#aaa;
+  background:#111;border:1px solid #222;border-radius:22px;
+  padding:22px 39px;font-size:33px;color:#aaa;
 }
 .pause-stat span{color:#f9ca24;font-weight:bold;}
 </style>
@@ -757,7 +757,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
     <div class="tab-page active" id="tab-mission">
       <!-- 大地图背景区（可滑动） -->
       <div class="mission-map-bg" id="missionMapBg">
-        <canvas class="mission-map-canvas" id="missionMapCanvas" width="390" height="480"></canvas>
+        <canvas class="mission-map-canvas" id="missionMapCanvas" width="1080" height="1340"></canvas>
         <!-- 顶部关卡名 -->
         <div class="mission-map-badge" id="missionMapBadge">绿野战区</div>
         <!-- 左右箭头 -->
@@ -905,7 +905,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 
 <!-- ===================== GAME SCREEN ===================== -->
 <div class="screen" id="gameScreen">
-  <canvas id="gameCanvas" width="390" height="844"></canvas>
+  <canvas id="gameCanvas" width="1080" height="1920"></canvas>
   <div id="gameUI">
     <!-- HUD 顶部信息行 -->
     <div id="hudTop">
@@ -1003,12 +1003,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 function scaleFrame(){
   const frame = document.getElementById('phoneFrame');
   const vw = window.innerWidth, vh = window.innerHeight;
-  const sw = vw/390, sh = vh/844;
+  const sw = vw/1080, sh = vh/1920;
   const s  = Math.min(sw, sh, 1); // 不放大，只缩小
   frame.style.transform = s < 1 ? `scale(${s})` : '';
   frame.style.transformOrigin = s < 1 ? 'top center' : '';
   // 垂直居中
-  const fh = 844*s;
+  const fh = 1920*s;
   frame.style.marginTop = vh > fh ? ((vh-fh)/2)+'px' : '0';
 }
 window.addEventListener('resize', scaleFrame);
@@ -1639,7 +1639,7 @@ function returnToLobby(){ showScreen('lobbyScreen'); renderLobby(); }
 // ============================================================
 const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
-const CW = canvas.width, CH = canvas.height; // 390 × 844
+const CW = canvas.width, CH = canvas.height; // 1080 × 1920
 
 const TAU   = Math.PI*2;
 const rng   = (a,b)=>Math.random()*(b-a)+a;

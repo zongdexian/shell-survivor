@@ -1650,108 +1650,263 @@ const joystick={active:false,touchId:null,bx:0,by:0,dx:0,dy:0,magnitude:0,maxR:4
 //  武器系统 — 参考《吸血鬼幸存者》重设计
 //  武器类型：bullet(子弹) | orbit(环绕) | zone(范围) | throw(投掷)
 // ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+//  武器基础定义（1级原版数值矩阵）
+//  cd=冷却秒数 | dmg=基础伤害 | cnt=初始数量 | prc=穿透数(-1=无限)
+//  spd=弹速 | rng=射程 | r=弹体半径 | dur=持续秒数
+// ════════════════════════════════════════════════════════════
 const WEAPON_DEFS={
-  // ─────────────────────────────────────────────────────────
-  //  基础武器（1级初始伤害已对齐原版数值）
-  //  fireRate = 每秒发射次数；damage = 单发基础伤害
-  // ─────────────────────────────────────────────────────────
-  // 鞭子：1级伤害15，左右扇形挥击穿透
+  // 鞭子：CD=1.35s，伤害15，1次，穿透无限，体积1.0，瞬发0.15s
   whip:      {id:'whip',      name:'鞭子',      icon:'🪱',type:'whip',
-              fireRate:0.9,  damage:15,  range:140, count:1,
-              bulletColor:'#f39c12',bulletR:10,
+              cd:1.35, fireRate:1/1.35, damage:15, range:150, count:1,
+              bulletColor:'#f39c12',bulletR:10, pierce:-1, duration:0.15,
               desc:'左右水平挥击，穿透所有敌人',
               evolveWith:'pummarola', evolveTo:'bloodytear'},
 
-  // 魔杖：1级伤害10，自动追踪，初始1发
+  // 魔杖：CD=1.2s，伤害10，1发，穿透1人，体积1.0
   wand:      {id:'wand',      name:'魔杖',      icon:'🪄',type:'bullet',
-              fireRate:1.4,  damage:10,  range:320, count:1,
+              cd:1.2,  fireRate:1/1.2,  damage:10, range:320, count:1,
               bulletColor:'#a29bfe',bulletR:5, spread:.04, bulletSpeed:420,
+              pierce:1, duration:3.0,
               desc:'自动发射魔法弹，瞄准最近敌人',
               evolveWith:'emptytome', evolveTo:'holywand'},
 
-  // 小刀：1级伤害10，朝移动方向连发，高频
+  // 小刀：CD=1.0s，伤害10，1发，穿透1，体积1.0，弹速快
   knife:     {id:'knife',     name:'小刀',      icon:'🔪',type:'bullet',
-              fireRate:1.8,  damage:10,  range:380, count:1,
-              bulletColor:'#dfe6e9',bulletR:4, spread:.02, bulletSpeed:540,
-              desc:'朝移动方向快速发射飞刀，靠频率堆DPS',
+              cd:1.0,  fireRate:1/1.0,  damage:10, range:380, count:1,
+              bulletColor:'#dfe6e9',bulletR:4, spread:.02, bulletSpeed:560,
+              pierce:1, duration:3.0,
+              desc:'朝移动方向快速发射飞刀，靠高频连射堆DPS',
               evolveWith:'bracer', evolveTo:'thousandedge'},
 
-  // 斧头：1级伤害40，抛物线，攻速慢
+  // 斧头：CD=2.0s，伤害40，1把，穿透无限，抛物线落下
   axe:       {id:'axe',       name:'斧头',      icon:'🪓',type:'axe',
-              fireRate:0.55, damage:40,  range:420, count:1,
-              bulletColor:'#636e72',bulletR:12,
-              desc:'向上抛出，抛物线落下，单发高伤害但攻速慢',
+              cd:2.0,  fireRate:1/2.0,  damage:40, range:420, count:1,
+              bulletColor:'#636e72',bulletR:12, pierce:-1,
+              desc:'向上抛出，抛物线落下，高伤害但攻速慢',
               evolveWith:'candelabrador', evolveTo:'deathspiral'},
 
-  // 十字架：1级伤害25，回旋镖，去程+回程均伤害
+  // 十字架：CD=2.0s，伤害25，1把，穿透1，折返出屏
   cross:     {id:'cross',     name:'十字架',    icon:'✝️',type:'boomerang',
-              fireRate:0.5,  damage:25,  range:300, count:1,
+              cd:2.0,  fireRate:1/2.0,  damage:25, range:300, count:1,
               bulletColor:'#fdcb6e',bulletR:9, bulletSpeed:340,
+              pierce:1, duration:99,
               desc:'扔向最近敌人，飞到一定距离后折返，去回均伤',
               evolveWith:'clover', evolveTo:'heavensword'},
 
-  // 国王圣经：1级伤害15，环绕旋转，带击退
+  // 国王圣经：CD=3.0s，伤害15，1本，穿透无限，持续3.0s
   bible:     {id:'bible',     name:'国王圣经',  icon:'📖',type:'orbit',
-              fireRate:0,    damage:15,  range:95,  count:1,
-              bulletColor:'#f9ca24',bulletR:15,
+              cd:3.0,  fireRate:0,      damage:15, range:95,  count:1,
+              bulletColor:'#f9ca24',bulletR:15, pierce:-1, duration:3.0,
               desc:'圣经在玩家周围旋转，形成防御圈，带微弱击退',
               evolveWith:'spellbinder', evolveTo:'unholyvespers'},
 
-  // 火焰魔杖：1级伤害40，随机飞向屏幕内敌人，大弹体
+  // 火焰魔杖：CD=4.5s，伤害40，1发，穿透1，持续5.0s
   firewand:  {id:'firewand',  name:'火焰魔杖',  icon:'🔥',type:'bullet',
-              fireRate:0.42, damage:40,  range:380, count:1,
+              cd:4.5,  fireRate:1/4.5,  damage:40, range:380, count:1,
               bulletColor:'#e17055',bulletR:14, spread:.32, bulletSpeed:270,
-              desc:'随机朝屏幕内敌人发射高伤害火球',
+              pierce:1, duration:5.0,
+              desc:'随机向屏幕内敌人发射高伤害火球，体积大',
               evolveWith:'spinach', evolveTo:'hellfire'},
 
-  // 大蒜：1级伤害5，每0.5秒判定，主要清蝙蝠
+  // 大蒜：CD=1.0s（判定），伤害5，1圈，穿透无限，永久持续
   garlic:    {id:'garlic',    name:'大蒜',      icon:'🧄',type:'aura',
-              fireRate:0,    damage:5,   range:85,  count:1,
-              bulletColor:'#fff',   bulletR:0,
-              desc:'永久伤害光环，0.5s判定一次，击退弱小敌人',
+              cd:1.0,  fireRate:0,      damage:5,  range:85,  count:1,
+              bulletColor:'#fff',bulletR:0, pierce:-1, duration:-1,
+              desc:'永久伤害光环，每秒判定，击退弱小敌人',
               evolveWith:'armor', evolveTo:'souleater'},
 
-  // 圣水：1级伤害20，地面火海持续灼烧
+  // 圣水：CD=4.5s，伤害20，1瓶，穿透无限，持续3.5s地面火海
   holywater: {id:'holywater', name:'圣水',      icon:'💧',type:'zone',
-              fireRate:0.55, damage:20,  range:55,  count:1,
-              bulletColor:'#74b9ff',bulletR:0,
-              desc:'在地面砸出火海，每秒多次造成20点伤害',
+              cd:4.5,  fireRate:1/4.5,  damage:20, range:55,  count:1,
+              bulletColor:'#74b9ff',bulletR:0, pierce:-1, duration:3.5,
+              desc:'在地面砸出持续灼烧的火海，每秒多次判定',
               evolveWith:'attractorb', evolveTo:'laborra'},
 
-  // 符文追踪器：1级伤害15，全屏穿透，碰边缘反弹
+  // 符文追踪器：CD=3.0s，伤害15，1箭，穿透无限，碰边缘反弹
   runetracer:{id:'runetracer',name:'符文追踪器',icon:'🔮',type:'bullet',
-              fireRate:0.45, damage:15,  range:99999,count:1,
-              bulletColor:'#a29bfe',bulletR:7, spread:.02, bulletSpeed:400, pierce:999,
-              desc:'穿透全屏，碰到边缘反弹，反弹伤害不衰减',
+              cd:3.0,  fireRate:1/3.0,  damage:15, range:99999,count:1,
+              bulletColor:'#a29bfe',bulletR:7, spread:.02, bulletSpeed:400,
+              pierce:999, duration:5.0,
+              desc:'穿透全屏，碰到边缘反弹，伤害不衰减',
               evolveWith:'duplicator', evolveTo:'thunderloop'},
 
-  // 闪电戒指：随机召唤闪电（不在原版13种基础武器内，保留）
+  // 闪电戒指：CD=4.5s，伤害15，2雷，范围判定，瞬发0.2s
   lightning: {id:'lightning', name:'闪电戒指',  icon:'⚡',type:'lightning',
-              fireRate:0.7,  damage:40,  range:320, count:1,
-              bulletColor:'#ffeaa7',bulletR:0,
-              desc:'随机召唤闪电劈向屏幕内的敌人',
+              cd:4.5,  fireRate:1/4.5,  damage:15, range:320, count:2,
+              bulletColor:'#ffeaa7',bulletR:0, pierce:-1, duration:0.2,
+              desc:'随机召唤2道闪电劈向屏幕内的敌人',
               evolveWith:'duplicator', evolveTo:'thunderloop'},
 
-  // 法老之歌：1级伤害20，纵向巨大光柱，全穿透高频
+  // 法老之歌：CD=3.5s，伤害20，1柱，全穿透
   mana:      {id:'mana',      name:'法老之歌',  icon:'🎵',type:'mana',
-              fireRate:1.2,  damage:20,  range:CH||844, count:1,
-              bulletColor:'#55efc4',bulletR:18,
+              cd:3.5,  fireRate:1/3.5,  damage:20, range:99999,count:1,
+              bulletColor:'#55efc4',bulletR:18, pierce:999, duration:3.5,
               desc:'纵向发射巨大光柱，全穿透高频打击',
               evolveWith:'spellbinder', evolveTo:'mannajewel'},
 
-  // 和平鸽 / 乌鸦（互相进化为破坏者）
+  // 和平鸽 / 乌鸦
   peachone:  {id:'peachone',  name:'和平鸽',    icon:'🕊️',type:'bird',
-              fireRate:0,    damage:20,  range:160, count:1,
-              bulletColor:'#fff',   bulletR:6,
+              cd:0,    fireRate:0,      damage:20, range:160, count:1,
+              bulletColor:'#fff',bulletR:6, pierce:-1, duration:99,
               desc:'顺时针盘旋轰炸',
               evolveWith:'ebonywings', evolveTo:'vandalier'},
   ebonywings:{id:'ebonywings',name:'乌鸦',      icon:'🐦',type:'bird',
-              fireRate:0,    damage:20,  range:160, count:1,
-              bulletColor:'#2d3436',bulletR:6,
+              cd:0,    fireRate:0,      damage:20, range:160, count:1,
+              bulletColor:'#2d3436',bulletR:6, pierce:-1, duration:99,
               desc:'逆时针盘旋轰炸',
               evolveWith:'peachone', evolveTo:'vandalier'},
 };
-function createWeapon(id){return{defId:id,level:1,cooldown:0,bonusDmg:0,bonusRate:0,bonusRange:0,bonusR:0,bonusCount:0,evolved:false};}
+function createWeapon(id){
+  const def=WEAPON_DEFS[id]||{};
+  return{defId:id,level:1,cooldown:0,
+    bonusDmg:0,     // 基础伤害加成（绝对值）
+    bonusRate:0,    // 攻速加成（每秒次数）
+    bonusRange:0,   // 射程加成
+    bonusR:0,       // 弹体半径加成
+    bonusCount:0,   // 弹道数量加成
+    bonusSpeed:0,   // 弹速加成（百分比，0.2=+20%）
+    bonusPierce:0,  // 穿透力加成
+    bonusArea:0,    // 攻击范围面积加成（百分比）
+    bonusDur:0,     // 持续时间加成（秒）
+    evolved:false,
+  };
+}
+
+// ════════════════════════════════════════════════════════════
+//  武器升级成长表（精确对齐原版属性轮动机制）
+//  每把武器 2~8 级各自精准强化 1~2 个维度
+// ════════════════════════════════════════════════════════════
+const WEAPON_LEVEL_GROWTH = {
+  // 鞭子：数量与范围轮动，伤害线性+5/级
+  // 2:+Amount 3:+5dmg+10%Area 4:+5dmg 5:+5dmg+10%Area 6:+5dmg 7:+5dmg+10%Area 8:+5dmg
+  whip:{
+    2:{bonusCount:1},
+    3:{bonusDmg:5,  bonusArea:0.10},
+    4:{bonusDmg:5},
+    5:{bonusDmg:5,  bonusArea:0.10},
+    6:{bonusDmg:5},
+    7:{bonusDmg:5,  bonusArea:0.10},
+    8:{bonusDmg:5},
+  },
+  // 魔杖：压缩CD + 加数量 + 加伤害
+  // 2:+Amount 3:-0.1CD 4:+10dmg 5:+Amount 6:+10dmg 7:-0.1CD 8:+1pierce
+  wand:{
+    2:{bonusCount:1},
+    3:{bonusRate:0.1/1.2/1.1}, // CD从1.2→1.1，等效fireRate提升约0.07/s，简化为直接加rate
+    4:{bonusDmg:10},
+    5:{bonusCount:1},
+    6:{bonusDmg:10},
+    7:{bonusRate:0.1/1.1/1.0},
+    8:{bonusPierce:1},
+  },
+  // 小刀：数量暴涨 + 弹速 + 伤害
+  // 2:+Amount 3:+Amount+5dmg 4:+5dmg+20%Speed 5:+Amount 6:+Amount+5dmg 7:+20%Speed 8:+1pierce
+  knife:{
+    2:{bonusCount:1},
+    3:{bonusCount:1, bonusDmg:5},
+    4:{bonusDmg:5,   bonusSpeed:0.20},
+    5:{bonusCount:1},
+    6:{bonusCount:1, bonusDmg:5},
+    7:{bonusSpeed:0.20},
+    8:{bonusPierce:1},
+  },
+  // 斧头：暴力堆伤害+数量+体积
+  // 2:+Amount 3:-0.2CD 4:+20dmg+10%Area 5:+Amount 6:+20dmg 7:+10%Area 8:+20dmg
+  axe:{
+    2:{bonusCount:1},
+    3:{bonusRate:0.2/2.0/1.8}, // CD 2.0→1.8
+    4:{bonusDmg:20,  bonusArea:0.10},
+    5:{bonusCount:1},
+    6:{bonusDmg:20},
+    7:{bonusArea:0.10},
+    8:{bonusDmg:20},
+  },
+  // 十字架：数量+伤害+速度
+  // 2:+Amount 3:+5dmg 4:+20%Speed 5:+Amount 6:+5dmg 7:+20%Speed 8:+5dmg
+  cross:{
+    2:{bonusCount:1},
+    3:{bonusDmg:5},
+    4:{bonusSpeed:0.20},
+    5:{bonusCount:1},
+    6:{bonusDmg:5},
+    7:{bonusSpeed:0.20},
+    8:{bonusDmg:5},
+  },
+  // 国王圣经：数量+CD+持续+速度+伤害+体积
+  // 2:+Amount 3:-0.2CD+30%Speed 4:+0.5dur+10%Area 5:+Amount 6:+10dmg+10%Area 7:+0.5dur+30%Speed 8:+10dmg
+  bible:{
+    2:{bonusCount:1},
+    3:{bonusRate:0.2/3.0/2.8, bonusSpeed:0.30},
+    4:{bonusDur:0.5, bonusArea:0.10},
+    5:{bonusCount:1},
+    6:{bonusDmg:10,  bonusArea:0.10},
+    7:{bonusDur:0.5, bonusSpeed:0.30},
+    8:{bonusDmg:10},
+  },
+  // 大蒜：体积+击退(用bonusR模拟)+伤害+CD
+  // 2:+20%Area+2dmg 3:-0.1CD+20%Knockback 4:+1dmg+10%Area 5:+20%Knockback 6:+1dmg+10%Area 7:-0.1CD 8:+1dmg+10%Area
+  garlic:{
+    2:{bonusArea:0.20, bonusDmg:2},
+    3:{bonusRate:0.05,  bonusR:4},    // R模拟击退范围
+    4:{bonusDmg:1,     bonusArea:0.10},
+    5:{bonusR:4},
+    6:{bonusDmg:1,     bonusArea:0.10},
+    7:{bonusRate:0.05},
+    8:{bonusDmg:1,     bonusArea:0.10},
+  },
+  // 圣水：数量+体积+持续+CD+伤害
+  // 2:+Amount 3:+0.5dur+10%Area 4:-0.2CD+5dmg 5:+Amount 6:+5dmg+10%Area 7:+0.5dur 8:+5dmg
+  holywater:{
+    2:{bonusCount:1},
+    3:{bonusDur:0.5,  bonusArea:0.10},
+    4:{bonusRate:0.2/4.5/4.3, bonusDmg:5},
+    5:{bonusCount:1},
+    6:{bonusDmg:5,    bonusArea:0.10},
+    7:{bonusDur:0.5},
+    8:{bonusDmg:5},
+  },
+  // 符文追踪器：数量+伤害+速度+体积
+  // 2:+Amount 3:+5dmg+10%Area 4:+20%Speed 5:+Amount 6:+5dmg 7:+10%Area 8:+5dmg+20%Speed
+  runetracer:{
+    2:{bonusCount:1},
+    3:{bonusDmg:5,    bonusArea:0.10},
+    4:{bonusSpeed:0.20},
+    5:{bonusCount:1},
+    6:{bonusDmg:5},
+    7:{bonusArea:0.10},
+    8:{bonusDmg:5,    bonusSpeed:0.20},
+  },
+  // 闪电戒指：数量+伤害+范围
+  lightning:{
+    2:{bonusCount:1},
+    3:{bonusDmg:5},
+    4:{bonusRange:40},
+    5:{bonusCount:1},
+    6:{bonusDmg:5},
+    7:{bonusRange:40},
+    8:{bonusDmg:10},
+  },
+  // 法老之歌：宽度+伤害+数量
+  mana:{
+    2:{bonusR:4},
+    3:{bonusDmg:5},
+    4:{bonusR:4,     bonusDmg:5},
+    5:{bonusCount:1},
+    6:{bonusDmg:5},
+    7:{bonusR:4},
+    8:{bonusDmg:5},
+  },
+  // 鸟类（通用）
+  peachone:{
+    2:{bonusDmg:5},3:{bonusDmg:5},4:{bonusDmg:5},
+    5:{bonusDmg:5},6:{bonusDmg:5},7:{bonusDmg:5},8:{bonusDmg:5},
+  },
+  ebonywings:{
+    2:{bonusDmg:5},3:{bonusDmg:5},4:{bonusDmg:5},
+    5:{bonusDmg:5},6:{bonusDmg:5},7:{bonusDmg:5},8:{bonusDmg:5},
+  },
+};
 
 // ════════════════════════════════════════════════════════════
 //  被动技能定义
@@ -1816,74 +1971,74 @@ function applyPassive(pid){
 
 // 超武合成配方（weapon + passive → evolvedId）
 const EVOLVE_RECIPES = {
-  // 血鞭：鞭子+红心。基础伤害40，必定暴击(×2=80)，暴击时吸血
+  // 血鞭：鞭子+红心。伤害40，必定暴击100%(×2=80)，吸血8/hit
   bloodytear:    {weapon:'whip',      passive:'pummarola',
                   name:'血鞭',        icon:'🩸',
-                  damage:40,
-                  desc:'必定暴击(80伤害)，暴击吸血恢复HP',
+                  damage:40, cd:1.35, count:2, pierce:-1,
+                  desc:'必定暴击(80伤害)，命中吸血8点，每秒上限8点',
                   special:'crit2x_lifesteal'},
 
-  // 圣魔杖：魔杖+空之书。基础伤害30，冷却归零变加特林
+  // 圣魔杖：魔杖+空之书。伤害30，CD≈0(约0.08s连发)，1发，穿透1
   holywand:      {weapon:'wand',      passive:'emptytome',
                   name:'圣魔杖',      icon:'✨',
-                  damage:30,
-                  desc:'冷却归零，无限连射蓝色魔法弹',
+                  damage:30, cd:0.08, count:1, pierce:1,
+                  desc:'冷却≈0，每帧连发，蓝色加特林',
                   special:'zero_cooldown'},
 
-  // 千刃：小刀+护腕。基础伤害15，无限连发
+  // 千刃：小刀+护腕。伤害15，CD≈0，极高频，穿透1
   thousandedge:  {weapon:'knife',     passive:'bracer',
                   name:'千刃',        icon:'🗡️',
-                  damage:15,
+                  damage:15, cd:0.05, count:1, pierce:1,
                   desc:'冷却归零，无限连发飞刀，移动即绞肉机',
                   special:'zero_cooldown'},
 
-  // 死亡旋风：斧头+烛台。基础伤害60，360°穿透镰刀
+  // 死亡旋风：斧头+烛台。伤害60，CD=2.0s，9把，穿透无限，体积×1.5
   deathspiral:   {weapon:'axe',       passive:'candelabrador',
                   name:'死亡旋风',    icon:'🌀',
-                  damage:60,
-                  desc:'向四周360°发射巨大穿透镰刀，全屏清怪',
+                  damage:60, cd:2.0, count:9, pierce:-1, areaBonus:1.5,
+                  desc:'360°同时发射9把穿透镰刀，全屏清怪',
                   special:'spiral_360'},
 
-  // 天堂之剑：十字架+幸运三叶草。基础伤害50，必定暴击×2
+  // 天堂之剑：十字架+幸运三叶草。伤害40，CD=2.0s，1把，暴击100%
   heavensword:   {weapon:'cross',     passive:'clover',
                   name:'天堂之剑',    icon:'⚔️',
-                  damage:50,
-                  desc:'巨大飞剑折返，必定暴击(×2伤害)',
+                  damage:40, cd:2.0, count:1,
+                  desc:'必定暴击×2(80伤害)，巨大飞剑折返',
                   special:'crit2x'},
 
-  // 邪恶晚祷：圣经+拼写器。圣经永不消失，持续覆盖
+  // 邪恶晚祷：圣经+拼写器。伤害30，CD=3.0s，1本，穿透无限，永久
   unholyvespers: {weapon:'bible',     passive:'spellbinder',
                   name:'邪恶晚祷',    icon:'🌑',
-                  damage:35,
-                  desc:'圣经永不消失，形成不可逾越的绝对领域',
+                  damage:30, cd:3.0, count:1, pierce:-1,
+                  desc:'圣经永不消失，转速+40%，绝对领域',
                   special:'permanent_orbit'},
 
-  // 地狱火：火焰魔杖+菠菜。基础伤害80，穿透无限
+  // 地狱火：火焰魔杖+菠菜。伤害80，CD=4.5s，1发，穿透无限，体积×2.5
   hellfire:      {weapon:'firewand',  passive:'spinach',
                   name:'地狱火',      icon:'💀',
-                  damage:80,
-                  desc:'巨大流星火球，穿透无限敌人，全游戏最高单发',
+                  damage:80, cd:4.5, count:1, pierce:-1, areaBonus:2.5,
+                  desc:'巨大流星穿透无限敌人，全游戏常规最高单发',
                   special:'pierce_infinite'},
 
-  // 灵魂吞噬者：大蒜+护甲。基础伤害20，吸血，回血时+1伤害(最多+60)
+  // 灵魂吞噬者：大蒜+护甲。伤害20，CD=1.0s，穿透无限，体积×1.4
   souleater:     {weapon:'garlic',    passive:'armor',
                   name:'灵魂吞噬者',  icon:'👁️',
-                  damage:20,
-                  desc:'伤害圈扩大，每60点回血永久+1伤害(上限+60)',
+                  damage:20, cd:1.0, pierce:-1, areaBonus:1.4,
+                  desc:'击退翻倍，每60点回血+1伤害(上限+60)',
                   special:'soul_stack'},
 
-  // 净罪圣水：圣水+吸引器。基础伤害30，火海追踪玩家
+  // 净罪圣水：圣水+吸引器。伤害30，CD=4.5s，1瓶，穿透无限，体积×1.5，追踪
   laborra:       {weapon:'holywater', passive:'attractorb',
                   name:'净罪圣水',    icon:'🌊',
-                  damage:30,
-                  desc:'火海范围极大且追踪玩家，怪踩上DPS超凡',
+                  damage:30, cd:4.5, count:1, pierce:-1, areaBonus:1.5,
+                  desc:'火海极大且追踪玩家，实际DPS全游戏第一',
                   special:'tracking_zone'},
 
-  // 雷电环带：闪电+复制器。二次爆炸
+  // 雷电环带：闪电+复制器。伤害40，CD=4.5s，2雷，体积×1.2，0.4s后二次爆炸
   thunderloop:   {weapon:'lightning', passive:'duplicator',
                   name:'雷电环带',    icon:'🌩️',
-                  damage:60,
-                  desc:'落雷后0.4秒在原处再次引爆AOE',
+                  damage:40, cd:4.5, count:2, areaBonus:1.2,
+                  desc:'落雷0.4s后再次AOE爆炸，双重判定',
                   special:'double_explode'},
 
   // 法老宝石：法老之歌+拼写器
@@ -2251,7 +2406,7 @@ let bibleAngle = 0;
 function syncBibleOrbs(){
   const wi = player.weapons.find(w=>w.defId==='bible');
   if(!wi){ bibleOrbs=[]; return; }
-  const count = 1 + (wi.bonusCount||0);
+  const count = (WEAPON_DEFS.bible.count||1) + (wi.bonusCount||0);
   while(bibleOrbs.length < count) bibleOrbs.push({hitCooldowns:{}});
   bibleOrbs.length = count;
 }
@@ -2259,10 +2414,13 @@ function syncBibleOrbs(){
 function updateBibleOrbs(delta){
   const wi = player.weapons.find(w=>w.defId==='bible');
   if(!wi||bibleOrbs.length===0) return;
-  const orbitR  = (90 + (wi.bonusRange||0)) * playerStats.area;
-  const orbitSpd= 2.0 * (wi.evolved ? 0 : 1) + (wi.evolved ? 0 : wi.bonusRate*0.1); // 进化后永驻不转
-  const dmg     = (WEAPON_DEFS.bible.damage + wi.bonusDmg) * player.dmgMult * playerStats.might;
-  if(!wi.evolved) bibleAngle += (2.0 + wi.level*0.15) * delta;
+  const areaScale = playerStats.area * (1+(wi.bonusArea||0));
+  const orbitR  = (WEAPON_DEFS.bible.range + (wi.bonusRange||0)) * areaScale;
+  const dmg     = (WEAPON_DEFS.bible.damage + (wi.bonusDmg||0)) * player.dmgMult * playerStats.might;
+  // 转速：基础2.0，每级bonusSpeed累加（来自升级表3级+30%，7级+30%）
+  const rotSpeed = wi.evolved ? 2.8 : 2.0 * (1+(wi.bonusSpeed||0));
+  if(!wi.evolved) bibleAngle += rotSpeed * delta;
+  else bibleAngle += 2.8 * delta; // 邪恶晚祷：转速+40%，永不消失
 
   bibleOrbs.forEach((orb,i)=>{
     const a = bibleAngle + (TAU/bibleOrbs.length)*i;
@@ -2290,8 +2448,9 @@ let garlicAura = {hitCooldowns:{}, timer:0};
 function updateGarlicAura(delta){
   const wi = player.weapons.find(w=>w.defId==='garlic');
   if(!wi) return;
-  const r   = (WEAPON_DEFS.garlic.range + (wi.bonusRange||0)) * playerStats.area;
-  const dmg = (WEAPON_DEFS.garlic.damage + wi.bonusDmg) * player.dmgMult * playerStats.might;
+  const areaScale = playerStats.area * (1+(wi.bonusArea||0));
+  const r   = (WEAPON_DEFS.garlic.range + (wi.bonusRange||0)) * areaScale;
+  const dmg = (WEAPON_DEFS.garlic.damage + (wi.bonusDmg||0)) * player.dmgMult * playerStats.might;
   garlicAura.timer = (garlicAura.timer||0) + delta;
 
   for(const uid in garlicAura.hitCooldowns){ garlicAura.hitCooldowns[uid]-=delta; if(garlicAura.hitCooldowns[uid]<=0) delete garlicAura.hitCooldowns[uid]; }
@@ -2344,8 +2503,8 @@ function updateHolyWater(delta){
       waterZones.push({
         x: tx+rng(-60,60), y: ty+rng(-60,60),
         r, dmg: (WEAPON_DEFS.holywater.damage+wi.bonusDmg)*player.dmgMult*playerStats.might,
-        life: (2.0 + wi.level*0.3) * playerStats.duration,
-        maxLife: (2.0 + wi.level*0.3) * playerStats.duration,
+        life: (WEAPON_DEFS.holywater.duration + (wi.bonusDur||0)) * playerStats.duration,
+        maxLife: (WEAPON_DEFS.holywater.duration + (wi.bonusDur||0)) * playerStats.duration,
         hitCooldowns:{}, evolved: wi.evolved,
       });
     }
@@ -2629,15 +2788,20 @@ function applyUpgrade(upg){
     const ex=player.weapons.find(w=>w.defId===upg.weaponId);
     if(ex){
       ex.level = Math.min(ex.level+1, MAX_WEAPON_LEVEL);
-      const base=WEAPON_DEFS[upg.weaponId];
-      ex.bonusDmg  += base.damage * 0.20;
-      ex.bonusRate += 0.10;
-      ex.bonusRange+= 18;
-      // 专属升级逻辑
-      if(['bible','garlic','holywater','lightning','peachone','ebonywings','mana'].includes(upg.weaponId))
-        ex.bonusCount=(ex.bonusCount||0)+1;
-      else if(upg.weaponId==='cross') ex.bonusCount=(ex.bonusCount||0)+1;
-      else if(upg.weaponId==='axe')   ex.bonusCount=(ex.bonusCount||0)+1;
+      // 精确属性轮动成长表
+      const growthTable = WEAPON_LEVEL_GROWTH[upg.weaponId];
+      const g = growthTable ? growthTable[ex.level] : null;
+      if(g){
+        if(g.bonusDmg)    ex.bonusDmg    = (ex.bonusDmg||0)    + g.bonusDmg;
+        if(g.bonusRate)   ex.bonusRate   = (ex.bonusRate||0)   + g.bonusRate;
+        if(g.bonusRange)  ex.bonusRange  = (ex.bonusRange||0)  + g.bonusRange;
+        if(g.bonusR)      ex.bonusR      = (ex.bonusR||0)      + g.bonusR;
+        if(g.bonusCount)  ex.bonusCount  = (ex.bonusCount||0)  + g.bonusCount;
+        if(g.bonusSpeed)  ex.bonusSpeed  = (ex.bonusSpeed||0)  + g.bonusSpeed;
+        if(g.bonusPierce) ex.bonusPierce = (ex.bonusPierce||0) + g.bonusPierce;
+        if(g.bonusArea)   ex.bonusArea   = (ex.bonusArea||0)   + g.bonusArea;
+        if(g.bonusDur)    ex.bonusDur    = (ex.bonusDur||0)    + g.bonusDur;
+      }
     } else {
       player.weapons.push(createWeapon(upg.weaponId));
     }
@@ -2870,15 +3034,21 @@ function updateWeapons(delta){
     if(['bible','garlic','holywater','lightning','peachone','ebonywings','vandalier'].includes(w.defId)) return;
 
     w.cooldown=(w.cooldown||0)-delta;
-    const rate=(def.fireRate+w.bonusRate) * playerStats.cooldown;
+    // 使用 def.cd 精确对应原版冷却；bonusRate 为绝对加成(次/秒)
+    const baseCd = def.cd || (1/(def.fireRate||1));
+    const effectiveCd = baseCd / Math.max(0.2, (1 + (w.bonusRate||0)) * playerStats.cooldown);
     if(w.cooldown>0) return;
-    w.cooldown=1/Math.max(0.1,rate);
+    w.cooldown = w.evolved && w.superSpec==='zero_cooldown' ? 0.08 : effectiveCd;
 
     const count = (def.count||1) + (w.bonusCount||0) + Math.floor(playerStats.amount);
-    const dmg   = (def.damage + w.bonusDmg) * player.dmgMult * playerStats.might;
-    const spd   = ((def.bulletSpeed||300) + (w.bonusRange||0)*0.3) * playerStats.speed;
-    const rng2  = (def.range + (w.bonusRange||0)) * playerStats.area;
-    const bulletR = (def.bulletR + (w.bonusR||0)) * playerStats.area;
+    const dmg   = (def.damage + (w.bonusDmg||0)) * player.dmgMult * playerStats.might;
+    // 弹速：原版速度 × (1 + bonusSpeed%) × playerStats.speed
+    const spd   = ((def.bulletSpeed||300)) * (1+(w.bonusSpeed||0)) * playerStats.speed;
+    // 范围：def.range + bonusRange，再乘 area 和 bonusArea 两层
+    const areaScale = playerStats.area * (1 + (w.bonusArea||0));
+    const rng2  = (def.range + (w.bonusRange||0)) * areaScale;
+    // 弹体半径：def.bulletR + bonusR，再乘 area 缩放
+    const bulletR = (def.bulletR + (w.bonusR||0)) * areaScale;
 
     Audio.shoot(w.defId);
 

@@ -1927,7 +1927,7 @@ const PASSIVE_DEFS={
   duplicator:  {id:'duplicator',  name:'复制器',   icon:'📋',desc:'弹道武器发射数量+1',           max:4, stat:'amount',    perLevel:1},
   pummarola:   {id:'pummarola',   name:'红心',      icon:'❤️',desc:'每秒自动回血+0.5',            max:5, stat:'regen',     perLevel:0.5},
   stonemask:   {id:'stonemask',   name:'面具',      icon:'🎭',desc:'金币/碎片获取+20%',           max:3, stat:'gold',      perLevel:0.20},
-  crown:       {id:'crown',       name:'皇冠',      icon:'👑',desc:'经验获取+8%，升级更快',       max:5, stat:'xpGain',    perLevel:0.08},
+  crown:       {id:'crown',       name:'皇冠',      icon:'👑',desc:'拾取经验宝石时×(1+8%)，最高+40%，领先20~30级', max:5, stat:'xpGain',    perLevel:0.08},
   attractorb:  {id:'attractorb',  name:'吸引器',   icon:'🧲',desc:'拾取范围+60',                 max:5, stat:'pickup',    perLevel:60},
   tiramisu:    {id:'tiramisu',    name:'提拉米苏', icon:'🍰',desc:'获得复活机会（最多2次）',      max:2, stat:'revive',    perLevel:1},
   clover:      {id:'clover',      name:'幸运三叶草',icon:'🍀',desc:'幸运+10%（提升暴击/宝箱率）',max:5, stat:'luck',      perLevel:0.10},
@@ -2274,11 +2274,48 @@ function updateBossDropItems(delta){
   }
 }
 
+// ════════════════════════════════════════════════════════════
+//  经验宝石系统（参考原版数值精确实现）
+//  3种颜色/面额，上限400颗，吞噬合并机制，三段升级公式
+// ════════════════════════════════════════════════════════════
+
+const GEM_CAP = 400; // 同屏上限
+
+// 宝石面额与颜色对应
+function gemColor(xp){
+  if(xp>=100) return '#ff4757';  // 🔴 红色宝石（合并体/精英掉落）
+  if(xp>=10)  return '#2ecc71';  // 🟢 绿色宝石（中型怪）
+  return '#74b9ff';               // 🔹 蓝色宝石（普通小怪）
+}
+function gemRadius(xp){
+  if(xp>=100) return 10;
+  if(xp>=10)  return 7;
+  return 5;
+}
+
 let gems=[];
+
 function spawnGem(x,y,xp){
-  if(gems.length>=MAX_GEMS) return;
-  gems.push({x,y,xp,r:6+Math.min(xp/10,6),bobTime:rng(0,TAU),
-    color:xp>30?'#a29bfe':xp>10?'#74b9ff':'#55efc4'});
+  // 上限检测：触发吞噬合并机制
+  if(gems.length>=GEM_CAP){
+    // 找离玩家最远的宝石（优先选红宝石，没有就找最远的）
+    let target=null, maxD=-1;
+    // 先找红宝石
+    for(const g of gems){
+      if(g.xp>=100){const d=dist(player,g);if(d>maxD){maxD=d;target=g;}}
+    }
+    // 没有红宝石则找最远的任意宝石并升级为红宝石
+    if(!target){
+      for(const g of gems){const d=dist(player,g);if(d>maxD){maxD=d;target=g;}}
+      if(target){ target.xp=Math.max(target.xp,100); target.color='#ff4757'; target.r=10; }
+    }
+    // 把新经验累加进目标宝石（不新建实体）
+    if(target){ target.xp+=xp; return; }
+  }
+  // 正常生成
+  const g={x,y,xp,r:gemRadius(xp),bobTime:rng(0,TAU),color:gemColor(xp),
+           vx:rng(-60,60), vy:rng(-120,-40)}; // 初速度：轻微弹出
+  gems.push(g);
 }
 
 let fragPickups=[];
@@ -3641,8 +3678,13 @@ function dealDmg(e,dmg){
   if(e.hp<=0){
      e.alive=false; killCount++; save.totalKills++;
      Audio.kill();
-     gainXP(e.xp); // 直接获得经验
-     const gemAngle = rng(0, TAU); // 保留角度变量供后续掉落偏移使用
+     // 掉落经验宝石实体（不再直接获得经验）
+     if(e.xp>0){
+       // 根据经验量决定宝石面额：精英/Boss掉大宝石
+       const xpVal = e.isElite ? Math.max(e.xp,100) : e.isBoss ? e.xp : e.xp;
+       spawnGem(e.x+rng(-12,12), e.y+rng(-8,8), xpVal);
+     }
+     const gemAngle = rng(0, TAU);
     if(e.isBoss){
        bossesDefeated++;
        Audio.bossKill();
@@ -3791,7 +3833,37 @@ function updateEnemies(delta){
   }
 }
 
-function updateGems(delta){ /* 经验宝石已移除，经验直接在击杀时获得 */ }
+function updateGems(delta){
+  const pickRange = player.pickupRange + (magnetActive>0 ? 9999 : 0);
+  for(let i=gems.length-1;i>=0;i--){
+    const g=gems[i];
+    g.bobTime+=delta*2.5;
+
+    // 弹出物理（落地后停止）
+    if(g.vx||g.vy){
+      g.vx*=Math.pow(0.85,delta*60);
+      g.vy+=300*delta; // 重力
+      g.x+=g.vx*delta; g.y+=g.vy*delta;
+      if(Math.abs(g.vx)<2&&Math.abs(g.vy)<2){ g.vx=0; g.vy=0; }
+    }
+
+    // 拾取范围内 → 飞向玩家
+    const dd=dist(player,g);
+    if(dd<pickRange+g.r){
+      const ang=Math.atan2(player.y-g.y,player.x-g.x);
+      const spd=magnetActive>0?600:320;
+      g.x+=Math.cos(ang)*spd*delta;
+      g.y+=Math.sin(ang)*spd*delta;
+    }
+
+    // 拾取
+    if(dist(player,g)<player.r+g.r+4){
+      gainXP(g.xp);
+      spawnParticles(g.x,g.y,g.color,4,60,.22);
+      gems.splice(i,1);
+    }
+  }
+}
 function updateFragPickups(delta){
   for(let i=fragPickups.length-1;i>=0;i--){
     const f=fragPickups[i]; f.bobTime+=delta*2;
@@ -3806,10 +3878,23 @@ function updateFragPickups(delta){
   }
 }
 
+// 三段升级公式（精确对齐原版）
+function xpToNextLevel(lv){
+  if(lv<=20)  return lv * 5;                      // 1~20级：lv×5
+  if(lv<=40)  return Math.floor(lv * 13 - 160);   // 21~40级：lv×13-160
+  return Math.floor(lv * 16 - 280);                // 41级+：lv×16-280
+}
+
 function gainXP(xp){
+  // 皇冠(Crown)=xpGain属性，xpBoost商店加成，叠乘
   const m=(save.shopPurchased['xpBoost']?1.25:1) * playerStats.xpGain;
   player.xp+=xp*m;
-  while(player.xp>=player.xpNext){player.xp-=player.xpNext;player.level++;player.xpNext=Math.floor(player.xpNext*1.28);levelUpQueue++;}
+  while(player.xp>=player.xpNext){
+    player.xp-=player.xpNext;
+    player.level++;
+    player.xpNext=xpToNextLevel(player.level); // 使用精确三段公式
+    levelUpQueue++;
+  }
   if(levelUpQueue>0&&!levelUpActive) showNextLevelUp();
   updateHUD();
 }
@@ -4230,7 +4315,33 @@ function render(){
     ctx.restore();
   });
 
-  // gems 已移除（经验直接在击杀时获得）
+  // ── 经验宝石渲染 ──
+  gems.forEach(g=>{
+    if(g.x<vx0-20||g.x>vx1+20||g.y<vy0-20||g.y>vy1+20) return;
+    const bob=Math.sin(g.bobTime)*2+(g.vx||g.vy?0:2);
+    ctx.save(); ctx.translate(g.x, g.y+bob);
+    // 外层光晕
+    const gl=ctx.createRadialGradient(0,0,0,0,0,g.r*2.2);
+    gl.addColorStop(0,g.color+'88'); gl.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(0,0,g.r*2.2,0,TAU);ctx.fillStyle=gl;ctx.fill();
+    // 宝石主体（菱形）
+    ctx.rotate(g.bobTime*0.3);
+    ctx.beginPath();
+    ctx.moveTo(0,-g.r); ctx.lineTo(g.r*0.65,0); ctx.lineTo(0,g.r); ctx.lineTo(-g.r*0.65,0);
+    ctx.closePath();
+    const gg=ctx.createLinearGradient(-g.r,-g.r,g.r,g.r);
+    gg.addColorStop(0,'#fff');gg.addColorStop(0.3,g.color);gg.addColorStop(1,g.color+'88');
+    ctx.fillStyle=gg;ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.5)';ctx.lineWidth=1;ctx.stroke();
+    // 红宝石（大面额）显示经验值
+    if(g.xp>=100){
+      ctx.rotate(-g.bobTime*0.3);
+      ctx.font=`bold ${Math.min(g.r*0.8,8)}px monospace`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillStyle='#fff';ctx.fillText(g.xp>999?'MAX':g.xp,0,g.r+8);
+    }
+    ctx.restore();
+  });
   // boss drop items
   bossDropItems.forEach(d=>{
     if(d.x<vx0||d.x>vx1||d.y<vy0||d.y>vy1) return;
@@ -4774,7 +4885,7 @@ function startGame(){
   Object.assign(player,{
     x:spawnX, y:spawnY, vx:0,vy:0,
     hp:100+b.maxHp+(eb.maxHp||0), maxHp:100+b.maxHp+(eb.maxHp||0), speed:85,
-    xp:0,xpNext:6,level:1,invincible:0,facing:0,weapons:[],
+    xp:0,xpNext:5,level:1,invincible:0,facing:0,weapons:[],
     dmgMult:1+b.damage+(eb.damage||0),
     speedMult:1+b.speed+(eb.speed||0),
     hpRegen:b.regen+(eb.regen||0),

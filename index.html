@@ -2388,9 +2388,11 @@ function spawnGem(x,y,xp){
     // 把新经验累加进目标宝石（不新建实体）
     if(target){ target.xp+=xp; return; }
   }
-  // 正常生成
+  // 正常生成：向随机方向弹出，快速减速停止（无重力）
+  const spawnAngle = rng(0, TAU);
+  const spawnSpd   = rng(40, 90);
   const g={x,y,xp,r:gemRadius(xp),bobTime:rng(0,TAU),color:gemColor(xp),
-           vx:rng(-60,60), vy:rng(-120,-40)}; // 初速度：轻微弹出
+           vx:Math.cos(spawnAngle)*spawnSpd, vy:Math.sin(spawnAngle)*spawnSpd};
   gems.push(g);
 }
 
@@ -4049,12 +4051,14 @@ function updateGems(delta){
     const g=gems[i];
     g.bobTime+=delta*2.5;
 
-    // 弹出物理（落地后停止）
+    // 弹出物理：四散后快速摩擦减速，无重力（无限地图没有地面）
     if(g.vx||g.vy){
-      g.vx*=Math.pow(0.85,delta*60);
-      g.vy+=300*delta; // 重力
-      g.x+=g.vx*delta; g.y+=g.vy*delta;
-      if(Math.abs(g.vx)<2&&Math.abs(g.vy)<2){ g.vx=0; g.vy=0; }
+      const friction = Math.pow(0.80, delta*60); // 强摩擦，0.5秒内停止
+      g.vx *= friction;
+      g.vy *= friction;
+      g.x += g.vx*delta;
+      g.y += g.vy*delta;
+      if(Math.abs(g.vx)<1 && Math.abs(g.vy)<1){ g.vx=0; g.vy=0; }
     }
 
     // 拾取范围内 → 飞向玩家

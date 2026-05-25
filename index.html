@@ -3109,6 +3109,14 @@ function render(){
     const p=player;
     ctx.save(); ctx.translate(p.x,p.y);
     ctx.beginPath(); ctx.ellipse(0,p.r*.7,p.r*.9,p.r*.28,0,0,TAU); ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fill();
+    // 脚下血条（在 rotate 之前绘制，保持水平不旋转）
+    const bw=p.r*2.8, bh=4, by=p.r+7;
+    const pct=clamp(p.hp/p.maxHp,0,1);
+    ctx.fillStyle='rgba(0,0,0,.55)';
+    ctx.beginPath();ctx.roundRect(-bw/2,by,bw,bh,2);ctx.fill();
+    ctx.fillStyle=pct>0.5?'#2ecc71':pct>0.25?'#f39c12':'#e74c3c';
+    ctx.beginPath();ctx.roundRect(-bw/2,by,bw*pct,bh,2);ctx.fill();
+
     const skip=p.invincible>0&&Math.floor(p.invincible*12)%2===0;
     if(!skip){
       ctx.rotate(p.facing);
@@ -3119,15 +3127,6 @@ function render(){
       ctx.beginPath();ctx.arc(p.r*.36,0,p.r*.34,-Math.PI*.58,Math.PI*.58);ctx.fillStyle='#dfe6e988';ctx.fill();
       ctx.fillStyle='#2d3436';ctx.fillRect(p.r*.5,-2.5,p.r*.95,5);
     }
-    // 脚下血条
-    const bw=p.r*2.8, bh=4;
-    const by=p.r+7;
-    const pct=clamp(p.hp/p.maxHp,0,1);
-    ctx.fillStyle='rgba(0,0,0,.55)';
-    ctx.beginPath();ctx.roundRect(-bw/2,by,bw,bh,2);ctx.fill();
-    const hc=pct>0.5?'#2ecc71':pct>0.25?'#f39c12':'#e74c3c';
-    ctx.fillStyle=hc;
-    ctx.beginPath();ctx.roundRect(-bw/2,by,bw*pct,bh,2);ctx.fill();
     ctx.restore();
   }
   ctx.restore();

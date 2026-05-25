@@ -2890,6 +2890,216 @@ function genMap(){
   decorations.length=0;
   for(let i=0;i<200;i++){const t=rngI(0,2);decorations.push({x:rng(40,WORLD_W-40),y:rng(40,WORLD_H-40),t,r:t===0?rng(8,22):rng(5,14),color:theme.decoColors[0][rngI(0,3)]});}
   for(let i=0;i<70;i++) decorations.push({x:rng(40,WORLD_W-40),y:rng(40,WORLD_H-40),t:3,r:rng(6,18),color:theme.decoColors[1]});
+  initTorches();
+}
+
+// ════════════════════════════════════════════════════════════
+//  火台系统（Light Sources / Torches）
+//  参考《吸血鬼幸存者》火台掉落权重池机制
+// ════════════════════════════════════════════════════════════
+
+// 火台掉落权重池（Luck=0基础状态）
+const TORCH_DROP_POOL = [
+  // weight: 固定不动（幸运不影响）| luckScale: 幸运加成倍率
+  {id:'coin10',    icon:'🪙', name:'10金币',     weight:75, luckScale:0,   type:'coin',    amount:10},
+  {id:'coin50',    icon:'💰', name:'50金币',     weight:15, luckScale:0.5, type:'coin',    amount:50},
+  {id:'chicken',   icon:'🍗', name:'烤鸡腿',     weight:15, luckScale:1.0, type:'heal',    amount:20},
+  {id:'magnet',    icon:'🧲', name:'金色磁铁',   weight:5,  luckScale:2.0, type:'magnet'},
+  {id:'cross_all', icon:'📿', name:'念珠',       weight:5,  luckScale:2.0, type:'killall'},
+  {id:'stopwatch', icon:'⏱️',name:'怀表',        weight:5,  luckScale:2.0, type:'freeze',  duration:3},
+  {id:'flamer',    icon:'🔥', name:'火焰喷射器', weight:4,  luckScale:1.5, type:'flamer'},
+  {id:'clover_s',  icon:'🍀', name:'小四叶草',   weight:1,  luckScale:3.0, type:'luckyup', amount:0.2},
+];
+
+// 火台场景对象数组
+let torches = [];
+let torchSpawnTimer = 0;
+const TORCH_MAX      = 10;   // 同屏上限
+const TORCH_SPAWN_CD = 1.0;  // 每1秒检查一次
+
+// 掉落物（从火台打出来的物品）
+let torchDrops = [];
+// 全屏磁铁激活时间
+let magnetActive = 0;
+// 时间冻结激活
+let freezeActive = 0;
+let freezeTimer  = 0;
+
+// 初始化：随机放置一批火台
+function initTorches(){
+  torches = [];
+  const count = 25 + rngI(0,10); // 初始25~35个
+  for(let i=0;i<count;i++){
+    torches.push(makeTorch(rng(60,WORLD_W-60), rng(60,WORLD_H-60)));
+  }
+}
+
+function makeTorch(x,y){
+  return {
+    x, y, r:10,
+    hp:1,          // 一碰就碎
+    alive:true,
+    flameTime:rng(0,TAU),   // 火焰动画偏移
+    flameH:rng(12,20),      // 火焰高度
+    breaking:false, breakTimer:0,
+  };
+}
+
+// 权重随机抽取（受幸运加成）
+function rollTorchDrop(x,y){
+  const luck = playerStats.luck; // 0~1.0+
+  // 计算各道具当前权重
+  const pool = TORCH_DROP_POOL.map(d=>({
+    ...d,
+    curWeight: d.id==='coin10'
+      ? d.weight                          // 金币权重永远锁死
+      : d.weight * (1 + d.luckScale * luck)
+  }));
+  const total = pool.reduce((s,d)=>s+d.curWeight,0);
+  let r = Math.random()*total;
+  for(const d of pool){
+    r -= d.curWeight;
+    if(r<=0){ spawnTorchDrop(x,y,d); return; }
+  }
+  spawnTorchDrop(x,y,pool[0]); // fallback：金币
+}
+
+function spawnTorchDrop(x,y,def){
+  torchDrops.push({
+    x, y: y-16,
+    vx: rng(-60,60), vy: rng(-120,-60),
+    r: 10, def, bobTime:0, landed:false,
+    landTimer:0, life:12, // 最多存在12秒
+  });
+}
+
+// 打碎火台
+function smashTorch(t){
+  t.alive=false;
+  spawnParticles(t.x,t.y,'#f39c12',12,130,.5);
+  spawnParticles(t.x,t.y,'#e17055',8,90,.4);
+  spawnShockwave(t.x,t.y,40,'#f39c12');
+  rollTorchDrop(t.x,t.y);
+}
+
+// 更新火台逻辑
+function updateTorches(delta){
+  // 时间冻结倒计时
+  if(freezeActive>0){
+    freezeTimer-=delta;
+    if(freezeTimer<=0) freezeActive=0;
+  }
+  // 磁铁效果倒计时
+  if(magnetActive>0) magnetActive-=delta;
+
+  // 随机刷新新火台（每1秒，5%*Luck加成）
+  torchSpawnTimer+=delta;
+  if(torchSpawnTimer>=TORCH_SPAWN_CD){
+    torchSpawnTimer=0;
+    const aliveCount=torches.filter(t=>t.alive).length;
+    if(aliveCount<TORCH_MAX){
+      const spawnRate=0.05*(1+playerStats.luck);
+      if(Math.random()<spawnRate){
+        // 在玩家视野外随机位置
+        const a=rng(0,TAU), d=rng(CW*0.6, CW*1.2);
+        const tx=clamp(player.x+Math.cos(a)*d,60,WORLD_W-60);
+        const ty=clamp(player.y+Math.sin(a)*d,60,WORLD_H-60);
+        torches.push(makeTorch(tx,ty));
+      }
+    }
+  }
+
+  // 更新火焰动画
+  torches.forEach(t=>{ if(t.alive) t.flameTime+=delta*3; });
+
+  // 碰撞检测：子弹 OR 大蒜光环 OR 鞭子 → 打碎火台
+  for(let i=torches.length-1;i>=0;i--){
+    const t=torches[i];
+    if(!t.alive) continue;
+    // 玩家子弹碰撞（在 updateBullets 里检测，这里只处理大蒜光环）
+    if(garlicAura && dist(player,t)<(WEAPON_DEFS.garlic.range+(player.weapons.find(w=>w.defId==='garlic')?.bonusRange||0))*playerStats.area+t.r){
+      const wi=player.weapons.find(w=>w.defId==='garlic');
+      if(wi) smashTorch(t);
+    }
+  }
+
+  // 更新掉落物（抛物线落地，然后可拾取）
+  for(let i=torchDrops.length-1;i>=0;i--){
+    const d=torchDrops[i];
+    d.life-=delta;
+    if(d.life<=0){torchDrops.splice(i,1);continue;}
+    d.bobTime+=delta*2;
+    if(!d.landed){
+      d.vy+=400*delta; // 重力
+      d.x+=d.vx*delta; d.y+=d.vy*delta;
+      if(d.vy>0&&d.y>d.y+d.vy*delta*0.5){ d.landed=true; d.vy=0; d.vx=0; }
+      // 简单：超过0.4秒后落地
+      d.landTimer=(d.landTimer||0)+delta;
+      if(d.landTimer>0.4) d.landed=true;
+    }
+    // 磁铁全屏吸引
+    if(magnetActive>0 || dist(player,d)<player.pickupRange+d.r*2){
+      const ang=Math.atan2(player.y-d.y,player.x-d.x);
+      const spd=magnetActive>0?450:280;
+      d.x+=Math.cos(ang)*spd*delta; d.y+=Math.sin(ang)*spd*delta;
+    }
+    // 拾取
+    if(dist(player,d)<player.r+d.r+4){
+      applyTorchDrop(d.def);
+      Audio.pickup();
+      spawnParticles(d.x,d.y,d.def.id==='coin10'||d.def.id==='coin50'?'#f9ca24':'#2ecc71',8,100,.4);
+      torchDrops.splice(i,1);
+    }
+  }
+}
+
+// 应用火台掉落效果
+function applyTorchDrop(def){
+  switch(def.type){
+    case 'coin':
+      runFragments+=Math.round((def.amount||10)*playerStats.gold);
+      document.getElementById('irFragments').textContent=runFragments;
+      break;
+    case 'heal':
+      player.hp=Math.min(player.maxHp, player.hp+(def.amount||20));
+      spawnDmgText(player.x,player.y-30,`+${def.amount}HP`,'#2ecc71');
+      updateHUD();
+      break;
+    case 'magnet':
+      magnetActive=3.0; // 全屏磁铁持续3秒
+      spawnParticles(player.x,player.y,'#a29bfe',20,180,.6);
+      // 立刻吸引所有场上道具
+      [...fragPickups,...blueprintPickups,...torchDrops,...chestDrops].forEach(p=>{
+        const ang=Math.atan2(player.y-p.y,player.x-p.x);
+        p.x+=Math.cos(ang)*300; p.y+=Math.sin(ang)*300;
+      });
+      break;
+    case 'killall':
+      // 念珠：全屏杀伤，每个敌人扣100点
+      enemies.forEach(e=>{ if(!e.isBoss&&!e.isReaper) dealDmg(e,100); });
+      spawnParticles(player.x,player.y,'#f9ca24',25,220,.7);
+      for(let i=0;i<5;i++) spawnShockwave(player.x,player.y,200+i*80,'#f9ca24');
+      break;
+    case 'freeze':
+      // 怀表：时间停止（敌人暂停移动）
+      freezeActive=1;
+      freezeTimer=def.duration||3;
+      spawnParticles(player.x,player.y,'#74b9ff',20,180,.7);
+      for(let i=0;i<3;i++) spawnShockwave(player.x,player.y,150+i*60,'#74b9ff');
+      break;
+    case 'flamer':
+      // 火焰喷射器：在玩家前方一扇形AOE
+      for(let a=-0.6;a<=0.6;a+=0.12){
+        spawnBulletCustom(player.x,player.y,player.facing+a,60,380,260,12,'#e17055',999,0,false);
+      }
+      spawnParticles(player.x,player.y,'#e17055',16,160,.5);
+      break;
+    case 'luckyup':
+      // 小四叶草：临时提升幸运值
+      playerStats.luck=(playerStats.luck||0)+(def.amount||0.2);
+      spawnDmgText(player.x,player.y-30,'🍀 幸运提升！','#2ecc71');
+      break;
+  }
 }
 
 // ── TILES ──
@@ -3252,6 +3462,18 @@ function updateBullets(delta){
       if(b.traveled>b.range||b.x<-20||b.x>WORLD_W+20||b.y<-20||b.y>WORLD_H+20){bullets.splice(i,1);continue;}
     }
     if(b.owner==='player'){
+      // 子弹碰撞火台 → 打碎
+      for(let ti=torches.length-1;ti>=0;ti--){
+        const t=torches[ti];
+        if(!t.alive||b.hit.has('t'+ti)) continue;
+        if(dist(b,t)<b.r+t.r){
+          b.hit.add('t'+ti);
+          smashTorch(t);
+          // 穿透型子弹不消失，非穿透消失
+          if(b.pierce<=1&&!b.isBouncer&&!b.isBoomerang){bullets.splice(i,1);break;}
+        }
+      }
+      if(i<0||i>=bullets.length) continue; // 子弹可能已删除
       for(let j=0;j<enemies.length;j++){
         const e=enemies[j];
         if(b.hit.has(e.uid)) continue;
@@ -3365,10 +3587,14 @@ function hurtPlayerContact(dmg){
 }
 
 function updateEnemies(delta){
+  // 时间冻结：boss/死神免疫，其他敌人暂停
+  const frozen = freezeActive>0;
   for(let i=enemies.length-1;i>=0;i--){
     const e=enemies[i];
     if(!e.alive){enemies.splice(i,1);continue;}
     if(e.flashTimer>0) e.flashTimer-=delta;
+    // 冻结状态：视觉闪蓝，不移动不射击
+    if(frozen && !e.isBoss && !e.isReaper){ e.flashTimer=0.1; continue; }
     const dx=player.x-e.x, dy=player.y-e.y, d=Math.hypot(dx,dy)||.001;
 
     // ── 分离推力 ──
@@ -3702,6 +3928,82 @@ function render(){
     ctx.beginPath(); ctx.arc(d.x,d.y,d.r,0,TAU); ctx.fillStyle=d.color; ctx.fill();
     if(d.t!==3){ctx.beginPath();ctx.arc(d.x+2,d.y+2,d.r*.45,0,TAU);ctx.fillStyle='#0a1a0a';ctx.fill();}
   });
+
+  // ── 火台渲染 ──
+  torches.forEach(t=>{
+    if(!t.alive) return;
+    if(t.x<vx0-20||t.x>vx1+20||t.y<vy0-20||t.y>vy1+20) return;
+    ctx.save(); ctx.translate(t.x,t.y);
+    // 地面光晕
+    const glow=ctx.createRadialGradient(0,0,0,0,0,t.r*3.5);
+    glow.addColorStop(0,'rgba(255,150,0,0.25)');
+    glow.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(0,0,t.r*3.5,0,TAU);ctx.fillStyle=glow;ctx.fill();
+    // 火台柱子
+    ctx.fillStyle='#5a3820';
+    ctx.beginPath();ctx.roundRect(-t.r*0.35,-t.r*0.8,t.r*0.7,t.r*2.2,2);ctx.fill();
+    // 顶部托盘
+    ctx.fillStyle='#7a4830';
+    ctx.beginPath();ctx.ellipse(0,-t.r*0.8,t.r*0.6,t.r*0.18,0,0,TAU);ctx.fill();
+    // 火焰（多层叠加）
+    const ft=t.flameTime;
+    const fh=t.flameH;
+    // 外层橙色火焰
+    for(let fi=0;fi<3;fi++){
+      const fx=Math.sin(ft*2.1+fi*2.1)*t.r*0.22;
+      const fscale=0.7+Math.sin(ft*3+fi*1.3)*0.3;
+      const fgrad=ctx.createRadialGradient(fx,-t.r*1.2,0,fx,-t.r*1.2,fh*fscale*0.6);
+      fgrad.addColorStop(0,'rgba(255,220,50,0.9)');
+      fgrad.addColorStop(0.5,'rgba(255,100,0,0.7)');
+      fgrad.addColorStop(1,'transparent');
+      ctx.beginPath();
+      ctx.moveTo(fx-t.r*0.28*fscale,-t.r*0.8);
+      ctx.quadraticCurveTo(fx+t.r*0.15*fscale,-t.r*(1.2+fh*0.06*fscale),fx,-t.r*(0.8+fh*0.12*fscale));
+      ctx.quadraticCurveTo(fx-t.r*0.15*fscale,-t.r*(1.2+fh*0.06*fscale),fx+t.r*0.28*fscale,-t.r*0.8);
+      ctx.closePath();
+      ctx.fillStyle=fgrad;ctx.fill();
+    }
+    // 内层白亮核心
+    const cgrad=ctx.createRadialGradient(0,-t.r*1.0,0,0,-t.r*1.0,t.r*0.3);
+    cgrad.addColorStop(0,'rgba(255,255,200,0.95)');
+    cgrad.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(0,-t.r*1.0,t.r*0.3,0,TAU);ctx.fillStyle=cgrad;ctx.fill();
+    ctx.restore();
+  });
+
+  // ── 火台掉落物渲染 ──
+  torchDrops.forEach(d=>{
+    if(d.x<vx0-20||d.x>vx1+20||d.y<vy0-20||d.y>vy1+20) return;
+    const bob = d.landed ? Math.sin(d.bobTime)*3 : 0;
+    ctx.save(); ctx.translate(d.x, d.y+bob);
+    // 光晕
+    const glowColor = d.def.type==='coin'?'#f9ca24':d.def.type==='heal'?'#2ecc71':'#a29bfe';
+    const dgl=ctx.createRadialGradient(0,0,0,0,0,18);
+    dgl.addColorStop(0,glowColor+'66');dgl.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(0,0,18,0,TAU);ctx.fillStyle=dgl;ctx.fill();
+    // emoji
+    ctx.font='18px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(d.def.icon,0,1);
+    // 飞行中的阴影轨迹
+    if(!d.landed){
+      ctx.beginPath();ctx.arc(0,0,8,0,TAU);
+      ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fill();
+    }
+    ctx.restore();
+  });
+
+  // 时间冻结特效：全屏蓝色闪烁
+  if(freezeActive>0){
+    const ft2=Math.sin(shockRingTime*12)*0.5+0.5;
+    ctx.fillStyle=`rgba(116,185,255,${ft2*0.08})`;
+    ctx.fillRect(cam.x-CW/2,cam.y-CH/2,CW,CH);
+    // 冰晶粒子效果（每帧随机几个）
+    if(Math.random()<0.4){
+      const ix=cam.x+rng(-CW/2,CW/2), iy=cam.y+rng(-CH/2,CH/2);
+      spawnParticles(ix,iy,'#74b9ff',2,40,.3);
+    }
+  }
+
   // frag pickups
   fragPickups.forEach(f=>{
     if(f.x<vx0||f.x>vx1||f.y<vy0||f.y>vy1) return;
@@ -4195,6 +4497,8 @@ function drawMinimap(){
   enemies.forEach(e=>{ctx.beginPath();ctx.arc(mx+e.x*sx,my+e.y*sy,e.isBoss?3:1.5,0,TAU);ctx.fillStyle=e.isBoss?'#fd79a8':'#e74c3c';ctx.fill();});
   fragPickups.forEach(f=>{ctx.beginPath();ctx.arc(mx+f.x*sx,my+f.y*sy,1.5,0,TAU);ctx.fillStyle='#f9ca24';ctx.fill();});
   gems.forEach(g=>{ctx.beginPath();ctx.arc(mx+g.x*sx,my+g.y*sy,1.5,0,TAU);ctx.fillStyle='#55efc4';ctx.fill();});
+  // 火台在小地图显示为橙色小点
+  torches.forEach(t=>{if(!t.alive)return;ctx.beginPath();ctx.arc(mx+t.x*sx,my+t.y*sy,1.2,0,TAU);ctx.fillStyle='#f39c12';ctx.fill();});
   ctx.beginPath();ctx.arc(mx+player.x*sx,my+player.y*sy,2.5,0,TAU);ctx.fillStyle='#74b9ff';ctx.fill();
   ctx.strokeStyle='#ffffff33'; ctx.lineWidth=.5;
   ctx.strokeRect(mx+(cam.x-CW/2)*sx,my+(cam.y-CH/2)*sy,CW*sx,CH*sy);
@@ -4213,7 +4517,7 @@ function gameLoop(ts){
       updateBibleOrbs(dt); updateGarlicAura(dt); updateHolyWater(dt); updateLightning(dt); updateBirds(dt);
       updateOrbitalSatellites(dt); updateDurianOrbs(dt); updateAxeProjectiles(dt);
       updateEnemies(dt); updateGems(dt); updateFragPickups(dt);
-      updateParticles(dt); updateShockwaves(dt); updateArena(dt); updateBossDropItems(dt); updateBlueprintPickups(dt); updateEquipDrops(dt); updateChestDrops(dt); updateSpawner(dt);
+      updateParticles(dt); updateShockwaves(dt); updateArena(dt); updateBossDropItems(dt); updateBlueprintPickups(dt); updateEquipDrops(dt); updateChestDrops(dt); updateTorches(dt); updateSpawner(dt);
       updateHUD();
     }
     if(gState==='roulette'){ updateRoulette(dt); shockRingTime+=dt; updateParticles(dt); }
@@ -4276,6 +4580,7 @@ function startGame(){
   lightningCooldown=0; lightningBolts=[]; birdBombs=[]; birdAngle=[0,Math.PI];
   birdCooldowns={peachone:0,ebonywings:0}; garlicAura={hitCooldowns:{},timer:0};
   chestDrops=[]; chestRoulette=null; eliteScheduleIdx=0;
+  torches=[]; torchDrops=[]; torchSpawnTimer=0; magnetActive=0; freezeActive=0; freezeTimer=0;
   // 重置被动属性
   playerPassives={};
   playerStats={might:1,cooldown:1,area:1,speed:1,duration:1,amount:0,regen:0,gold:1,xpGain:1,pickup:0,revive:0,luck:0,armor:0};

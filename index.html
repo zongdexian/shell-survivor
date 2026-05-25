@@ -466,9 +466,50 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 #hpBar{ display:none; }
 #hpLabel{ display:none; }
 
-/* 武器栏 — 隐藏 */
-#weaponBar{display:none;}
-.weapon-slot,.weapon-slot.active,.weapon-slot span,.weapon-lvl{}
+/* ── 武器&被动栏 — 底部固定，每行6格 ── */
+#weaponBar{
+  position:absolute;
+  bottom:calc(env(safe-area-inset-bottom,0px)+10px);
+  left:0;right:0;
+  display:flex;flex-direction:column;gap:3px;
+  padding:0 8px;
+  pointer-events:none;
+  z-index:2;
+}
+.wbar-row{
+  display:flex;gap:3px;justify-content:center;
+}
+.wbar-row-label{
+  font-size:7px;color:rgba(255,255,255,0.35);
+  text-align:center;letter-spacing:.5px;margin-bottom:1px;
+}
+.weapon-slot{
+  width:46px;height:44px;
+  background:rgba(10,10,20,.78);
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:8px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:16px;position:relative;
+  flex-shrink:0;
+}
+.weapon-slot.w-evolved{
+  border-color:#f9ca24;
+  box-shadow:0 0 6px #f9ca2444;
+}
+.weapon-slot.p-slot{
+  background:rgba(10,10,30,.65);
+  border-color:rgba(162,155,254,.25);
+  font-size:14px;
+}
+.weapon-lvl{
+  position:absolute;bottom:1px;right:3px;
+  font-size:7px;color:#f9ca24;font-weight:bold;line-height:1;
+}
+.weapon-slot span{
+  font-size:7px;color:rgba(255,255,255,.6);margin-top:1px;
+  line-height:1;text-align:center;max-width:42px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
 
 /* Virtual joystick area — 全屏底层，永远在最下面接收触摸 */
 #joystickArea{
@@ -1750,16 +1791,20 @@ const WEAPON_DEFS={
               desc:'纵向发射巨大光柱，全穿透高频打击',
               evolveWith:'spellbinder', evolveTo:'mannajewel'},
 
-  // 和平鸽 / 乌鸦
+  // 和平鸽：CD=3.0s，伤害15，4发，穿透无限，轰炸持续4.0s
+  // 轰炸圈在玩家周围旋转，圈内持续砸下导弹
   peachone:  {id:'peachone',  name:'和平鸽',    icon:'🕊️',type:'bird',
-              cd:0,    fireRate:0,      damage:20, range:160, count:1,
-              bulletColor:'#fff',bulletR:6, pierce:-1, duration:99,
-              desc:'顺时针盘旋轰炸',
+              cd:3.0,  fireRate:0,      damage:15, range:160, count:4,
+              bulletColor:'#fdcb6e',bulletR:14, pierce:-1, duration:4.0,
+              bombInterval:0.18, // 每发导弹间隔
+              desc:'在旋转轰炸圈内持续砸下导弹，穿透无限',
               evolveWith:'ebonywings', evolveTo:'vandalier'},
+  // 乌鸦：与和平鸽数值相同，反向旋转
   ebonywings:{id:'ebonywings',name:'乌鸦',      icon:'🐦',type:'bird',
-              cd:0,    fireRate:0,      damage:20, range:160, count:1,
-              bulletColor:'#2d3436',bulletR:6, pierce:-1, duration:99,
-              desc:'逆时针盘旋轰炸',
+              cd:3.0,  fireRate:0,      damage:15, range:160, count:4,
+              bulletColor:'#a29bfe',bulletR:14, pierce:-1, duration:4.0,
+              bombInterval:0.18,
+              desc:'在旋转轰炸圈内持续砸下导弹，反向旋转',
               evolveWith:'peachone', evolveTo:'vandalier'},
 };
 function createWeapon(id){
@@ -1902,14 +1947,26 @@ const WEAPON_LEVEL_GROWTH = {
     7:{bonusR:4},
     8:{bonusDmg:5},
   },
-  // 鸟类（通用）
+  // 和平鸽/乌鸦：参考原版精确成长
+  // 2:+2Amount+10%Area 3:-0.3CD+5dmg 4:+2Amount+10%Area 5:-0.3CD+0.5dur
+  // 6:+2Amount+5dmg 7:+2Amount+10%Area 8:-0.4CD+0.5dur
   peachone:{
-    2:{bonusDmg:5},3:{bonusDmg:5},4:{bonusDmg:5},
-    5:{bonusDmg:5},6:{bonusDmg:5},7:{bonusDmg:5},8:{bonusDmg:5},
+    2:{bonusCount:2,  bonusArea:0.10},
+    3:{bonusRate:0.3/3.0/2.7, bonusDmg:5},
+    4:{bonusCount:2,  bonusArea:0.10},
+    5:{bonusRate:0.3/2.7/2.4, bonusDur:0.5},
+    6:{bonusCount:2,  bonusDmg:5},
+    7:{bonusCount:2,  bonusArea:0.10},
+    8:{bonusRate:0.4/2.4/2.0, bonusDur:0.5},
   },
   ebonywings:{
-    2:{bonusDmg:5},3:{bonusDmg:5},4:{bonusDmg:5},
-    5:{bonusDmg:5},6:{bonusDmg:5},7:{bonusDmg:5},8:{bonusDmg:5},
+    2:{bonusCount:2,  bonusArea:0.10},
+    3:{bonusRate:0.3/3.0/2.7, bonusDmg:5},
+    4:{bonusCount:2,  bonusArea:0.10},
+    5:{bonusRate:0.3/2.7/2.4, bonusDur:0.5},
+    6:{bonusCount:2,  bonusDmg:5},
+    7:{bonusCount:2,  bonusArea:0.10},
+    8:{bonusRate:0.4/2.4/2.0, bonusDur:0.5},
   },
 };
 
@@ -2606,35 +2663,108 @@ function updateLightning(delta){
 }
 
 // ── 和平鸽 / 乌鸦 / 破坏者 ──
-let birdAngle = [0, Math.PI]; // peachone/ebonywings的角度
-let birdCooldowns = {peachone:0, ebonywings:0};
-let birdBombs = []; // [{x,y,r,life,color}]
+// ── 轰炸圈数据 ──
+// 每只鸟 = 一个旋转的轰炸圈，圈内持续发射导弹
+// bombZone: { angle, active, bombTimer, bombsLeft, cx, cy, r, color }
+let birdAngle = [0, Math.PI]; // 轰炸圈当前旋转角
+let birdCooldowns = {peachone:0, ebonywings:0}; // 主冷却（何时激活新一轮）
+let birdBombZones = [];  // 当前激活的轰炸圈
+let birdBombs = [];      // 已砸下的爆炸体 [{x,y,r,life,maxLife,dmg,color,hit}]
 
 function updateBirds(delta){
-  ['peachone','ebonywings'].forEach((id,idx)=>{
-    const wi = player.weapons.find(w=>w.defId===id || (w.defId==='vandalier'));
-    if(!wi) return;
-    const def = WEAPON_DEFS[id] || WEAPON_DEFS.peachone;
-    const orbitR = (160 + (wi.bonusRange||0)) * playerStats.area;
-    const spd = (wi.defId==='vandalier' ? 2.5 : 1.8) * (idx===0 ? 1 : -1);
-    birdAngle[idx] += spd * delta;
-    const bx = player.x + Math.cos(birdAngle[idx]) * orbitR;
-    const by = player.y + Math.sin(birdAngle[idx]) * orbitR;
-    birdCooldowns[id] = (birdCooldowns[id]||0) - delta;
-    if(birdCooldowns[id]<=0){
-      birdCooldowns[id] = 0.8 * playerStats.cooldown;
-      const dmg = (def.damage+(wi.bonusDmg||0))*player.dmgMult*playerStats.might*(wi.defId==='vandalier'?1.8:1);
-      const r = (def.bulletR+(wi.bonusR||0))*playerStats.area;
-      birdBombs.push({x:bx,y:by,r,life:.35,maxLife:.35,color:idx===0?'#fff':'#2d3436',dmg,hit:new Set()});
-      spawnParticles(bx,by,idx===0?'#fff':'#636e72',6,90,.3);
+  // 处理和平鸽 / 乌鸦 / 破坏者
+  const birds = [
+    player.weapons.find(w=>w.defId==='peachone'),
+    player.weapons.find(w=>w.defId==='ebonywings'),
+    player.weapons.find(w=>w.defId==='vandalier'),
+  ].filter(Boolean);
+
+  birds.forEach((wi,idx)=>{
+    const isVandalier = wi.defId==='vandalier';
+    const defId = isVandalier ? 'peachone' : wi.defId;
+    const def = WEAPON_DEFS[defId];
+    const dir = isVandalier ? 1 : (wi.defId==='peachone' ? 1 : -1);
+    const rotSpd = (isVandalier ? 2.2 : 1.5) * dir;
+    const areaScale = playerStats.area * (1+(wi.bonusArea||0));
+    const orbitR = (def.range + (wi.bonusRange||0)) * areaScale;
+    const bombR   = (def.bulletR + (wi.bonusR||0)) * areaScale;
+    const dmg     = (def.damage + (wi.bonusDmg||0)) * player.dmgMult * playerStats.might * (isVandalier ? 2 : 1);
+    // CD与持续时间
+    const baseCd  = def.cd;
+    const effectCd= baseCd / Math.max(0.4,(1+(wi.bonusRate||0))*playerStats.cooldown);
+    const durBase = def.duration + (wi.bonusDur||0);
+    const dur     = durBase * playerStats.duration;
+    const bombsPerRound = def.count + (wi.bonusCount||0) + Math.floor(playerStats.amount);
+    const bombInterval  = Math.max(0.08, dur / bombsPerRound);
+
+    // 旋转轰炸圈角度（持续旋转）
+    const angleKey = isVandalier ? 0 : (wi.defId==='peachone' ? 0 : 1);
+    birdAngle[angleKey] += rotSpd * delta;
+
+    // 主冷却
+    const cdKey = isVandalier ? 'vandalier' : wi.defId;
+    birdCooldowns[cdKey] = (birdCooldowns[cdKey]||0) - delta;
+
+    if(birdCooldowns[cdKey] <= 0){
+      birdCooldowns[cdKey] = effectCd;
+      // 激活一个新轰炸圈
+      const cx = player.x + Math.cos(birdAngle[angleKey]) * orbitR;
+      const cy = player.y + Math.sin(birdAngle[angleKey]) * orbitR;
+      const color = isVandalier ? '#f9ca24' : (wi.defId==='peachone' ? '#fdcb6e' : '#a29bfe');
+      birdBombZones.push({
+        cx, cy, r: bombR * 2.0,   // 圆圈可见半径
+        bombR,                      // 单颗导弹半径
+        dmg, color,
+        life: dur, maxLife: dur,   // 轰炸圈持续时间
+        bombTimer: 0,
+        bombInterval,
+        bombsLeft: bombsPerRound,  // 本轮剩余导弹数
+        hit: new Set(),            // 同一导弹穿透记录
+      });
+      // 生成特效
+      spawnParticles(cx,cy,color,8,120,.4);
     }
   });
+
+  // 更新所有激活的轰炸圈
+  for(let i=birdBombZones.length-1;i>=0;i--){
+    const z=birdBombZones[i];
+    z.life-=delta;
+    if(z.life<=0){birdBombZones.splice(i,1);continue;}
+
+    z.bombTimer+=delta;
+    if(z.bombTimer>=z.bombInterval && z.bombsLeft>0){
+      z.bombTimer=0;
+      z.bombsLeft--;
+      // 在轰炸圈范围内随机落下一颗导弹
+      const ang=rng(0,TAU);
+      const d=rng(0,z.r*0.9);
+      const bx=z.cx+Math.cos(ang)*d;
+      const by=z.cy+Math.sin(ang)*d;
+      birdBombs.push({
+        x:bx, y:by,
+        r:z.bombR, dmg:z.dmg, color:z.color,
+        life:0.4, maxLife:0.4,
+        hit:new Set(),
+      });
+      spawnParticles(bx,by,z.color,6,80,.3);
+      spawnShockwave(bx,by,z.bombR*1.4,z.color);
+    }
+  }
+
+  // 更新导弹爆炸体（持续判定，穿透无限）
   for(let i=birdBombs.length-1;i>=0;i--){
-    const b=birdBombs[i]; b.life-=delta;
+    const b=birdBombs[i];
+    b.life-=delta;
     if(b.life<=0){birdBombs.splice(i,1);continue;}
     for(let j=0;j<enemies.length;j++){
-      const e=enemies[j]; if(b.hit.has(e.uid)) continue;
-      if(dist(b,e)<b.r+e.r){ b.hit.add(e.uid); dealDmg(e,b.dmg); spawnParticles(b.x,b.y,b.color,5,80,.3); }
+      const e=enemies[j];
+      if(b.hit.has(e.uid)) continue;
+      if(dist(b,e)<b.r+e.r){
+        b.hit.add(e.uid);
+        dealDmg(e,b.dmg);
+        spawnParticles(b.x,b.y,b.color,4,70,.25);
+      }
     }
   }
 }
@@ -4136,13 +4266,50 @@ function updateHUD(){
   document.getElementById('timerVal').textContent=String(Math.floor(elapsed/60)).padStart(2,'0')+':'+String(elapsed%60).padStart(2,'0');
 }
 function updateWeaponUI(){
-  const list=document.getElementById('weaponBar'); list.innerHTML='';
-  player.weapons.forEach(w=>{
-    const def=WEAPON_DEFS[w.defId], el=document.createElement('div');
-    el.className='weapon-slot active';
-    el.innerHTML=`${def.icon}<span>${def.name}</span><div class="weapon-lvl">Lv${w.level}</div>`;
-    list.appendChild(el);
-  });
+  const bar = document.getElementById('weaponBar');
+  bar.innerHTML = '';
+
+  // ── 上排：武器（每行最多6格）──
+  if(player.weapons.length > 0){
+    const wLabel = document.createElement('div');
+    wLabel.className = 'wbar-row-label';
+    wLabel.textContent = '武器';
+    bar.appendChild(wLabel);
+
+    const wRow = document.createElement('div');
+    wRow.className = 'wbar-row';
+    player.weapons.slice(0,6).forEach(w=>{
+      const def = WEAPON_DEFS[w.defId];
+      if(!def) return;
+      const el = document.createElement('div');
+      el.className = 'weapon-slot' + (w.evolved?' w-evolved':'');
+      el.innerHTML = `${def.icon}<span>${def.name}</span><div class="weapon-lvl">${w.evolved?'★':''}Lv${w.level}</div>`;
+      wRow.appendChild(el);
+    });
+    bar.appendChild(wRow);
+  }
+
+  // ── 下排：被动（每行最多6格）──
+  const passiveIds = Object.keys(playerPassives).filter(pid=>playerPassives[pid]>0);
+  if(passiveIds.length > 0){
+    const pLabel = document.createElement('div');
+    pLabel.className = 'wbar-row-label';
+    pLabel.textContent = '被动';
+    bar.appendChild(pLabel);
+
+    const pRow = document.createElement('div');
+    pRow.className = 'wbar-row';
+    passiveIds.slice(0,6).forEach(pid=>{
+      const def = PASSIVE_DEFS[pid];
+      if(!def) return;
+      const lv = playerPassives[pid];
+      const el = document.createElement('div');
+      el.className = 'weapon-slot p-slot';
+      el.innerHTML = `${def.icon}<span>${def.name}</span><div class="weapon-lvl">Lv${lv}</div>`;
+      pRow.appendChild(el);
+    });
+    bar.appendChild(pRow);
+  }
 }
 
 // ── RENDER ──
@@ -4683,25 +4850,49 @@ function render(){
     ctx.restore();
   });
 
-  // ── 飞鸟 ──
-  const birdColors=['#ffffff','#2d3436'];
+  // ── 轰炸圈渲染 ──
+  birdBombZones.forEach(z=>{
+    const t=z.life/z.maxLife;
+    const pulse=0.6+Math.sin(shockRingTime*6)*0.4;
+    // 圆圈外边框
+    ctx.beginPath();ctx.arc(z.cx,z.cy,z.r,0,TAU);
+    ctx.strokeStyle=z.color+(Math.floor(t*180).toString(16).padStart(2,'0'));
+    ctx.lineWidth=2.5;ctx.setLineDash([8,6]);ctx.stroke();ctx.setLineDash([]);
+    // 圆圈内淡色填充
+    const zg=ctx.createRadialGradient(z.cx,z.cy,0,z.cx,z.cy,z.r);
+    zg.addColorStop(0,z.color+'18');zg.addColorStop(1,z.color+'06');
+    ctx.beginPath();ctx.arc(z.cx,z.cy,z.r,0,TAU);ctx.fillStyle=zg;ctx.fill();
+    // 圆圈中心小鸟图标
+    ctx.font='18px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(z.color==='#f9ca24'?'🦚':z.color==='#fdcb6e'?'🕊️':'🐦',z.cx,z.cy);
+  });
+
+  // ── 导弹爆炸体渲染 ──
+  birdBombs.forEach(b=>{
+    const t=b.life/b.maxLife;
+    const al=Math.floor(t*200).toString(16).padStart(2,'0');
+    // 爆炸扩散圈
+    const bg3=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r*(2-t));
+    bg3.addColorStop(0,b.color+al);bg3.addColorStop(0.5,b.color+'66');bg3.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(b.x,b.y,b.r*(2-t),0,TAU);ctx.fillStyle=bg3;ctx.fill();
+    // 中心亮核
+    ctx.beginPath();ctx.arc(b.x,b.y,b.r*0.4*t,0,TAU);
+    ctx.fillStyle=`rgba(255,255,255,${t*0.8})`;ctx.fill();
+  });
+
+  // ── 飞鸟图标（跟随轰炸圈位置）──
   ['peachone','ebonywings','vandalier'].forEach((id,idx)=>{
     const wi=player.weapons.find(w=>w.defId===id);
     if(!wi) return;
     const bi=idx===2?0:idx;
-    const bx=player.x+Math.cos(birdAngle[bi])*(160+(wi.bonusRange||0))*playerStats.area;
-    const by=player.y+Math.sin(birdAngle[bi])*(160+(wi.bonusRange||0))*playerStats.area;
+    const areaS=playerStats.area*(1+(wi.bonusArea||0));
+    const orbitR=(WEAPON_DEFS[id==='vandalier'?'peachone':id]?.range||160+(wi.bonusRange||0))*areaS;
+    const bx=player.x+Math.cos(birdAngle[bi])*orbitR;
+    const by=player.y+Math.sin(birdAngle[bi])*orbitR;
     ctx.save(); ctx.translate(bx,by);
-    ctx.font=`${22+(wi.bonusR||0)}px serif`;
-    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font='20px serif';ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText(id==='vandalier'?'🦚':idx===0?'🕊️':'🐦',0,0);
     ctx.restore();
-  });
-  birdBombs.forEach(b=>{
-    const t=b.life/b.maxLife;
-    const bg3=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r*2);
-    bg3.addColorStop(0,`rgba(255,255,255,${t*0.7})`);bg3.addColorStop(1,'transparent');
-    ctx.beginPath();ctx.arc(b.x,b.y,b.r*2,0,TAU);ctx.fillStyle=bg3;ctx.fill();
   });
 
   // ── 子弹中的斧头和回旋镖特殊渲染 ──
@@ -4901,7 +5092,8 @@ function startGame(){
   bullets=[];enemies=[];gems=[];particles=[];shockwaves=[];fragPickups=[];orbitalSatellites=[];bossDropItems=[];blueprintPickups=[];equipDrops=[];runEquips=[];
   durianOrbs=[]; axeProjectiles=[]; durianAngle=0;
   bibleOrbs=[]; bibleAngle=0; waterZones=[]; waterCooldown=0;
-  lightningCooldown=0; lightningBolts=[]; birdBombs=[]; birdAngle=[0,Math.PI];
+  lightningCooldown=0; lightningBolts=[]; birdBombs=[]; birdBombZones=[]; birdAngle=[0,Math.PI];
+  birdCooldowns={peachone:0,ebonywings:0,vandalier:0};
   birdCooldowns={peachone:0,ebonywings:0}; garlicAura={hitCooldowns:{},timer:0};
   chestDrops=[]; chestRoulette=null; eliteScheduleIdx=0;
   torches=[]; torchDrops=[]; torchSpawnTimer=0; magnetActive=0; freezeActive=0; freezeTimer=0;

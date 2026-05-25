@@ -1651,10 +1651,12 @@ const WEAPON_DEFS={
   shotgun:{id:'shotgun',name:'霰弹',icon:'🔧',fireRate:.55, bulletSpeed:300,damage:18,range:220,bulletColor:'#e17055',bulletR:5,spread:0,   count:5, shotgunSpread:.36,desc:'扇射，子弹越升越多越大'},
   grenade:{id:'grenade',name:'榴弹',icon:'💥',fireRate:.4,  bulletSpeed:220,damage:50,range:220,bulletColor:'#fd79a8',bulletR:8,spread:.12,count:1,aoe:75,desc:'AOE爆炸，升级增加数量'},
   laser:  {id:'laser',  name:'激光',icon:'🔴',fireRate:.9,  bulletSpeed:640,damage:24,range:520,bulletColor:'#ff4757',bulletR:3,spread:.01,count:1,pierce:5,desc:'穿透激光，升级变粗'},
-  // 电流光波：特殊武器，不发射子弹，在周围生成同心电流圆环
   orbital:{id:'orbital',name:'电流光波',icon:'⚡',fireRate:0, bulletSpeed:0, damage:18,range:14, bulletColor:'#00d2ff',bulletR:2,spread:0,count:1,desc:'同心电流圆环，升级增加光波圈数',isOrbital:true},
-  // 彩色弹球：遇屏幕边缘反弹，最多6次
   bouncer:{id:'bouncer',name:'彩色弹球',icon:'🔮',fireRate:.6, bulletSpeed:340,damage:22,range:99999,bulletColor:'#ff6b9d',bulletR:7,spread:.05,count:1,desc:'反弹弹球，升级增加发射数量和伤害',isBouncer:true},
+  // 旋转榴莲：围绕玩家旋转的实体，有碰撞体积，持续伤害
+  durian: {id:'durian', name:'旋转榴莲',icon:'🌵',fireRate:0, bulletSpeed:0, damage:30,range:72, bulletColor:'#adff2f',bulletR:12,spread:0,count:1,desc:'围绕玩家旋转，升级增加数量',isDurian:true},
+  // 飞斧：向前方抛出，有抛物线轨迹，落地爆炸
+  axe:    {id:'axe',    name:'飞斧',    icon:'🪓',fireRate:.7, bulletSpeed:260,damage:45,range:380,bulletColor:'#cd853f',bulletR:10,spread:.1,count:2,desc:'抛物线飞行，升级增加数量',isAxe:true},
 };
 function createWeapon(id){return{defId:id,level:1,cooldown:0,bonusDmg:0,bonusRate:0,bonusRange:0,bonusR:0,bonusCount:0};}
 
@@ -1913,6 +1915,151 @@ function spawnDmgText(wx,wy,text,color){
   setTimeout(()=>el.remove(),820);
 }
 
+// ══════════════════════════════════════════
+//   旋转榴莲系统
+//   每颗榴莲是绕玩家旋转的实体，有碰撞体积
+// ══════════════════════════════════════════
+let durianOrbs = []; // [{angle, hitCooldowns, flashTimer, evolved}]
+let durianAngle = 0; // 全局旋转角（所有榴莲等间隔分布）
+
+function syncDurianOrbs(){
+  const wi = player.weapons.find(w=>w.defId==='durian');
+  if(!wi){ durianOrbs=[]; return; }
+  const count = 1 + (wi.bonusCount||0); // Lv1=1颗，每级+1
+  while(durianOrbs.length < count) durianOrbs.push({hitCooldowns:{}, flashTimer:0});
+  durianOrbs.length = count;
+}
+
+function updateDurianOrbs(delta){
+  const wi = player.weapons.find(w=>w.defId==='durian');
+  if(!wi||durianOrbs.length===0) return;
+  const def = WEAPON_DEFS.durian;
+  const orbitR   = def.range + (wi.bonusRange||0);   // 旋转半径
+  const orbitSpd = (2.2 + wi.level*0.18) * (wi.evolved ? 1.6 : 1); // 进化后更快
+  const dmg      = (def.damage + wi.bonusDmg) * player.dmgMult;
+  const r        = def.bulletR + (wi.bonusR||0);
+
+  durianAngle += orbitSpd * delta;
+
+  durianOrbs.forEach((orb, i)=>{
+    if(orb.flashTimer>0) orb.flashTimer-=delta;
+    // 等间隔分布
+    const a = durianAngle + (TAU / durianOrbs.length) * i;
+    orb.x = player.x + Math.cos(a) * orbitR;
+    orb.y = player.y + Math.sin(a) * orbitR;
+    orb.angle = a;
+    orb.r = r;
+
+    // 冷却计时
+    for(const uid in orb.hitCooldowns){
+      orb.hitCooldowns[uid]-=delta;
+      if(orb.hitCooldowns[uid]<=0) delete orb.hitCooldowns[uid];
+    }
+    // 碰撞检测
+    for(let j=0;j<enemies.length;j++){
+      const e=enemies[j];
+      if(orb.hitCooldowns[e.uid]) continue;
+      if(dist(orb,e)<orb.r+e.r){
+        // 进化后：AOE爆炸
+        if(wi.evolved){
+          spawnShockwave(orb.x,orb.y,60,'#adff2f');
+          for(let k=0;k<enemies.length;k++) if(dist(orb,enemies[k])<60) dealDmg(enemies[k], dmg*0.6);
+          spawnParticles(orb.x,orb.y,'#adff2f',10,120,.4);
+        } else {
+          dealDmg(e, dmg);
+          spawnParticles(orb.x,orb.y,'#adff2f',5,80,.3);
+        }
+        orb.hitCooldowns[e.uid] = 0.5;
+        orb.flashTimer = 0.1;
+      }
+    }
+  });
+}
+
+// ══════════════════════════════════════════
+//   飞斧系统
+//   抛物线轨迹，飞出后自动消失，定时重新发射
+// ══════════════════════════════════════════
+let axeProjectiles = []; // [{x,y,vx,vy,angle,life,maxLife,r,dmg,evolved,hit}]
+const AXE_GRAVITY = 480; // 重力加速度 px/s²
+
+function fireAxes(){
+  const wi = player.weapons.find(w=>w.defId==='axe');
+  if(!wi) return;
+  const def    = WEAPON_DEFS.axe;
+  const count  = def.count + (wi.bonusCount||0);
+  const dmg    = (def.damage + wi.bonusDmg) * player.dmgMult;
+  const spd    = def.bulletSpeed + (wi.bonusRange||0)*0.3;
+  const r      = def.bulletR + (wi.bonusR||0);
+  const spread = 0.28;
+
+  // 向玩家面朝方向 + 上方（偏转 -70°~-110°）扇形抛出
+  const baseAng = player.facing - Math.PI/2; // 偏向上方
+  for(let i=0;i<count;i++){
+    const off = count>1 ? (i/(count-1)-0.5)*spread*2 : 0;
+    const ang  = baseAng + off;
+    axeProjectiles.push({
+      x: player.x, y: player.y,
+      vx: Math.cos(ang)*spd,
+      vy: Math.sin(ang)*spd,
+      angle: ang,
+      spinAngle: rng(0, TAU),
+      life: 0,
+      maxLife: (def.range + (wi.bonusRange||0)) / spd * 1.5,
+      r, dmg,
+      evolved: !!wi.evolved,
+      hit: new Set(),
+    });
+  }
+}
+
+function updateAxeProjectiles(delta){
+  const wi = player.weapons.find(w=>w.defId==='axe');
+
+  // 定时发射
+  if(wi){
+    wi.cooldown = (wi.cooldown||0) - delta;
+    if(wi.cooldown <= 0){
+      wi.cooldown = 1/(WEAPON_DEFS.axe.fireRate + (wi.bonusRate||0));
+      fireAxes();
+    }
+  }
+
+  for(let i=axeProjectiles.length-1;i>=0;i--){
+    const a=axeProjectiles[i];
+    a.life+=delta;
+    a.vy += AXE_GRAVITY * delta;  // 重力
+    a.x  += a.vx * delta;
+    a.y  += a.vy * delta;
+    a.spinAngle += 8*delta; // 旋转动画
+
+    if(a.life>a.maxLife||a.x<-100||a.x>WORLD_W+100||a.y<-100||a.y>WORLD_H+100){
+      // 进化版落地爆炸
+      if(a.evolved){
+        spawnShockwave(a.x,a.y,80,'#cd853f');
+        spawnParticles(a.x,a.y,'#cd853f',14,160,.5);
+        for(let k=0;k<enemies.length;k++) if(dist(a,enemies[k])<80) dealDmg(enemies[k],a.dmg*0.7);
+      }
+      axeProjectiles.splice(i,1);
+      continue;
+    }
+
+    // 碰撞检测（穿透型，每个敌人只打一次）
+    for(let j=0;j<enemies.length;j++){
+      const e=enemies[j];
+      if(a.hit.has(e.uid)) continue;
+      if(dist(a,e)<a.r+e.r){
+        a.hit.add(e.uid);
+        dealDmg(e, a.dmg);
+        spawnParticles(a.x,a.y,'#cd853f',6,100,.3);
+        if(!a.evolved) { // 普通版每把斧打完就消失
+          axeProjectiles.splice(i,1); break;
+        }
+      }
+    }
+  }
+}
+
 let wave=1, waveTimer=0, spawnTimer=0;
 // 每波持续时间：前期长，后期缩短
 function getWaveDuration(){ return Math.max(16, 30 - Math.floor((wave-1)/10)*2); }
@@ -1973,13 +2120,30 @@ function showWaveAnnounce(n,txt){
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
 }
 
+const MAX_WEAPON_LEVEL = 8; // 满级
+const EVOLVE_LEVEL     = 9; // 进化触发级别
+
+// 进化效果描述
+const EVOLVE_DESC = {
+  pistol:  '【极速连射】射速×2，子弹贯穿所有敌人',
+  shotgun: '【弹幕散射】子弹数×2，弹体变巨大',
+  grenade: '【地毯轰炸】连续3颗，爆炸范围×1.8',
+  laser:   '【死亡射线】穿透无限，宽度×3，持续灼烧',
+  orbital: '【超级风暴】光波圈数+3，伤害×2',
+  bouncer: '【混沌弹】反弹次数×2，弹体分裂为3',
+  durian:  '【爆炸榴莲】触碰即爆炸，AOE伤害',
+  axe:     '【风暴飞斧】落地爆炸，穿透所有敌人',
+};
+
 const UPGRADE_POOL=[
-  {id:'unlock_shotgun',name:'霰弹枪',icon:'🔧',rarity:'rare',  type:'weapon',weaponId:'shotgun',desc:'解锁/升级：子弹数量+1，弹体变大'},
-  {id:'unlock_grenade',name:'榴弹枪',icon:'💥',rarity:'epic',  type:'weapon',weaponId:'grenade',desc:'解锁/升级：发射数量+1'},
-  {id:'unlock_laser',  name:'激光枪',icon:'🔴',rarity:'epic',  type:'weapon',weaponId:'laser',  desc:'解锁/升级：光束变粗，伤害提升'},
-  {id:'unlock_orbital', name:'电流光波', icon:'⚡',rarity:'epic', type:'weapon',weaponId:'orbital', desc:'解锁/升级：电流光波圈数+1'},
-  {id:'unlock_bouncer', name:'彩色弹球', icon:'🔮',rarity:'rare', type:'weapon',weaponId:'bouncer', desc:'解锁/升级：发射数量+1，伤害提升'},
-  {id:'pistol_up',     name:'手枪精通',icon:'🔫',rarity:'common',type:'weapon',weaponId:'pistol',desc:'手枪射速+伤害提升'},
+  {id:'unlock_shotgun',name:'霰弹枪',  icon:'🔧',rarity:'rare',  type:'weapon',weaponId:'shotgun',desc:'解锁/升级：子弹数量+1，弹体变大'},
+  {id:'unlock_grenade',name:'榴弹枪',  icon:'💥',rarity:'epic',  type:'weapon',weaponId:'grenade',desc:'解锁/升级：发射数量+1'},
+  {id:'unlock_laser',  name:'激光枪',  icon:'🔴',rarity:'epic',  type:'weapon',weaponId:'laser',  desc:'解锁/升级：光束变粗，伤害提升'},
+  {id:'unlock_orbital',name:'电流光波',icon:'⚡',rarity:'epic',  type:'weapon',weaponId:'orbital',desc:'解锁/升级：电流光波圈数+1'},
+  {id:'unlock_bouncer',name:'彩色弹球',icon:'🔮',rarity:'rare',  type:'weapon',weaponId:'bouncer',desc:'解锁/升级：发射数量+1，伤害提升'},
+  {id:'unlock_durian', name:'旋转榴莲',icon:'🌵',rarity:'rare',  type:'weapon',weaponId:'durian', desc:'解锁/升级：旋转数量+1，伤害提升'},
+  {id:'unlock_axe',    name:'飞斧',    icon:'🪓',rarity:'rare',  type:'weapon',weaponId:'axe',    desc:'解锁/升级：飞斧数量+1，伤害提升'},
+  {id:'pistol_up',     name:'手枪精通',icon:'🔫',rarity:'common',type:'weapon',weaponId:'pistol', desc:'手枪射速+伤害提升'},
   {id:'hp_up',    name:'生命强化',icon:'❤️', rarity:'common',type:'passive',apply(){player.maxHp+=30;player.hp=Math.min(player.maxHp,player.hp+30);},desc:'最大HP+30，立即回复30'},
   {id:'speed_up', name:'急速移动',icon:'👟', rarity:'common',type:'passive',apply(){player.speedMult*=1.15;},desc:'移动速度+15%'},
   {id:'dmg_up',   name:'火力强化',icon:'🔥', rarity:'common',type:'passive',apply(){player.dmgMult*=1.25;},desc:'所有伤害+25%'},
@@ -1988,44 +2152,80 @@ const UPGRADE_POOL=[
   {id:'magnet',   name:'磁铁',    icon:'🧲', rarity:'common',type:'passive',apply(){player.pickupRange+=70;},desc:'吸取范围+70'},
   {id:'multishot',name:'多重射击',icon:'🌟', rarity:'epic',  type:'passive',apply(){player.extraShot=(player.extraShot||0)+1;},desc:'所有武器多发1颗'},
 ];
+
 function pickUpgrades(n=3){
-  const av=UPGRADE_POOL.filter(u=>{
+  // 先检查是否有武器可以进化（Lv8 → 进化）
+  const evolveOptions = player.weapons
+    .filter(w=> w.level>=MAX_WEAPON_LEVEL && !w.evolved)
+    .map(w=>({
+      id:'evolve_'+w.defId,
+      name: WEAPON_DEFS[w.defId].name + ' 进化！',
+      icon: WEAPON_DEFS[w.defId].icon + '✨',
+      rarity:'legend',
+      type:'evolve',
+      weaponId: w.defId,
+      desc: EVOLVE_DESC[w.defId] || '武器获得全新形态',
+    }));
+
+  // 进化选项强制出现（最多2个进化选项塞入候选）
+  const forcedEvolves = shuffle(evolveOptions).slice(0,2);
+
+  const av = UPGRADE_POOL.filter(u=>{
     if(u.type==='weapon'){
       const ex=player.weapons.find(w=>w.defId===u.weaponId);
-      if(ex&&ex.level>=12) return false;
-      if(!ex&&player.weapons.length>=6) return false;
+      if(ex && ex.evolved)           return false; // 已进化不再升级
+      if(ex && ex.level>=MAX_WEAPON_LEVEL) return false; // 满级且无进化时屏蔽（进化选项单独处理）
+      if(!ex && player.weapons.length>=6)  return false;
     }
     return true;
   });
-  return shuffle(av).slice(0,n);
+
+  // 进化选项优先，凑满 n 张
+  const combined = [...forcedEvolves, ...shuffle(av)];
+  return combined.slice(0, n);
 }
+
 function applyUpgrade(upg){
-  if(upg.type==='weapon'){
+  if(upg.type==='evolve'){
+    // 武器进化
+    const ex=player.weapons.find(w=>w.defId===upg.weaponId);
+    if(!ex) return;
+    ex.evolved = true;
+    ex.level   = EVOLVE_LEVEL;
+    // 进化专属加成
+    switch(upg.weaponId){
+      case 'pistol':  ex.bonusRate+=3;   ex.bonusDmg+=30; break;
+      case 'shotgun': ex.bonusCount=(ex.bonusCount||0)+5; ex.bonusR=(ex.bonusR||0)+4; break;
+      case 'grenade': ex.bonusCount=(ex.bonusCount||0)+2; ex.bonusDmg+=60; break;
+      case 'laser':   ex.bonusR=(ex.bonusR||0)+8;  ex.bonusDmg+=50; break;
+      case 'orbital': ex.bonusCount=(ex.bonusCount||0)+3; ex.bonusDmg+=40; break;
+      case 'bouncer': ex.bonusCount=(ex.bonusCount||0)+2; ex.bonusDmg+=40; break;
+      case 'durian':  ex.bonusCount=(ex.bonusCount||0)+2; ex.bonusDmg+=50; break;
+      case 'axe':     ex.bonusCount=(ex.bonusCount||0)+3; ex.bonusDmg+=60; break;
+    }
+    spawnParticles(player.x,player.y,'#f9ca24',30,200,.8);
+    spawnParticles(player.x,player.y,'#fff',20,160,.6);
+  } else if(upg.type==='weapon'){
     const ex=player.weapons.find(w=>w.defId===upg.weaponId);
     if(ex){
       ex.level++;
       const base=WEAPON_DEFS[upg.weaponId];
-      // 所有武器通用：+伤害、+射速、+射程（卫星炮轨道半径由等级独立控制，不用 bonusRange）
       ex.bonusDmg  += base.damage * 0.22;
-      ex.bonusRate += 0.15;
-      if(upg.weaponId !== 'orbital') ex.bonusRange += 30;
-      // 武器专属升级
-      if(upg.weaponId==='laser'){
-        // 激光：每级弹体半径+1.5（光束变粗）
-        ex.bonusR = (ex.bonusR||0) + 1.5;
-      } else if(upg.weaponId==='grenade'){
-        // 榴弹：每级发射数+1
-        ex.bonusCount = (ex.bonusCount||0) + 1;
-      } else if(upg.weaponId==='shotgun'){
-        // 霰弹：每级子弹数+1，弹体半径+0.8
-        ex.bonusCount = (ex.bonusCount||0) + 1;
-        ex.bonusR     = (ex.bonusR||0) + 0.8;
-      }
+      ex.bonusRate += 0.12;
+      if(upg.weaponId!=='orbital') ex.bonusRange += 25;
+      // 专属升级
+      if(upg.weaponId==='laser')        ex.bonusR=(ex.bonusR||0)+1.5;
+      else if(upg.weaponId==='grenade') ex.bonusCount=(ex.bonusCount||0)+1;
+      else if(upg.weaponId==='shotgun'){ex.bonusCount=(ex.bonusCount||0)+1; ex.bonusR=(ex.bonusR||0)+0.8;}
+      else if(upg.weaponId==='durian')  ex.bonusCount=(ex.bonusCount||0)+1;
+      else if(upg.weaponId==='axe')     ex.bonusCount=(ex.bonusCount||0)+1;
+      else if(upg.weaponId==='bouncer') ex.bonusCount=(ex.bonusCount||0)+1;
     } else {
       player.weapons.push(createWeapon(upg.weaponId));
     }
   } else if(upg.apply) upg.apply();
   syncOrbitalSatellites();
+  syncDurianOrbs();
   updateWeaponUI();
 }
 
@@ -2439,17 +2639,19 @@ function showNextLevelUp(){
     el.className=`card ${rClass}`;
     const rLabel={common:'普通',rare:'稀有',epic:'史诗',legend:'传说'}[upg.rarity]||upg.rarity;
     const rColor={common:'#95a5a6',rare:'#3498db',epic:'#9b59b6',legend:'#f9ca24'}[upg.rarity]||'#aaa';
-    // 检测是否已有该武器（用于显示"升级"还是"解锁"）
+    const isEvolve  = upg.type==='evolve';
     const isUpgrade = upg.type==='weapon' && player.weapons.find(w=>w.defId===upg.weaponId);
-    const btnLabel = isUpgrade ? '↑' : '+';
+    const btnLabel  = isEvolve ? '★' : isUpgrade ? '↑' : '+';
+    // 进化卡片加特殊背景动画样式
+    if(isEvolve) el.style.cssText='background:linear-gradient(135deg,#2a1a00,#3a2800);border-left:4px solid #f9ca24;box-shadow:0 0 20px rgba(249,202,36,0.4);';
     el.innerHTML=`
       <div class="card-icon">${upg.icon}</div>
       <div class="card-body">
-        <div class="card-name">${upg.name}${isUpgrade?'<span style="color:#f9ca24;font-size:10px;margin-left:6px">升级</span>':''}</div>
+        <div class="card-name">${upg.name}${isEvolve?'':''}${!isEvolve&&isUpgrade?'<span style="color:#f9ca24;font-size:10px;margin-left:6px">升级</span>':''}</div>
         <div class="card-desc">${upg.desc}</div>
-        <div class="card-rarity ${rClass}" style="color:${rColor}">${rLabel}</div>
+        <div class="card-rarity ${rClass}" style="color:${rColor}">${isEvolve?'⚡ 进化！':rLabel}</div>
       </div>
-      <div class="card-btn">${btnLabel}</div>`;
+      <div class="card-btn" style="${isEvolve?'border-color:#f9ca24;color:#f9ca24;background:rgba(249,202,36,0.15);':''}">${btnLabel}</div>`;
     function pickThis(ev){
       if(ev && ev.cancelable) ev.preventDefault();
       if(_pickingUpgrade) return;
@@ -2826,6 +3028,77 @@ function render(){
     }
   });
 
+  // ── 旋转榴莲渲染 ──
+  durianOrbs.forEach((orb,i)=>{
+    if(!orb.x) return;
+    ctx.save(); ctx.translate(orb.x, orb.y);
+    const evolved = player.weapons.find(w=>w.defId==='durian')?.evolved;
+    // 外层光晕
+    const glowColor = evolved ? '#ff6600' : '#adff2f';
+    const gl = ctx.createRadialGradient(0,0,0,0,0,orb.r*2.2);
+    gl.addColorStop(0, glowColor+'66'); gl.addColorStop(1,'transparent');
+    ctx.beginPath(); ctx.arc(0,0,orb.r*2.2,0,TAU); ctx.fillStyle=gl; ctx.fill();
+    // 榴莲主体（旋转）
+    ctx.rotate(durianAngle*1.5 + i*TAU/Math.max(1,durianOrbs.length));
+    if(evolved){
+      // 进化：橙红色炸弹
+      const g2=ctx.createRadialGradient(-orb.r*.3,-orb.r*.3,0,0,0,orb.r);
+      g2.addColorStop(0,'#ff8c00'); g2.addColorStop(1,'#cc3300');
+      ctx.beginPath(); ctx.arc(0,0,orb.r,0,TAU); ctx.fillStyle=g2; ctx.fill();
+      // 火焰刺
+      for(let s=0;s<6;s++){
+        const sa=TAU/6*s;
+        ctx.beginPath(); ctx.moveTo(Math.cos(sa)*orb.r,Math.sin(sa)*orb.r);
+        ctx.lineTo(Math.cos(sa)*(orb.r+8),Math.sin(sa)*(orb.r+8));
+        ctx.strokeStyle='#ff6600'; ctx.lineWidth=2.5; ctx.stroke();
+      }
+    } else {
+      // 普通：绿色榴莲
+      const g2=ctx.createRadialGradient(-orb.r*.3,-orb.r*.3,0,0,0,orb.r);
+      g2.addColorStop(0,'#c8ff50'); g2.addColorStop(1,'#5a9a00');
+      ctx.beginPath(); ctx.arc(0,0,orb.r,0,TAU); ctx.fillStyle=g2; ctx.fill();
+      // 尖刺
+      for(let s=0;s<8;s++){
+        const sa=TAU/8*s;
+        ctx.beginPath(); ctx.moveTo(Math.cos(sa)*orb.r,Math.sin(sa)*orb.r);
+        ctx.lineTo(Math.cos(sa)*(orb.r+7),Math.sin(sa)*(orb.r+7));
+        ctx.strokeStyle='#7acc00'; ctx.lineWidth=2; ctx.stroke();
+      }
+    }
+    if(orb.flashTimer>0){ ctx.beginPath();ctx.arc(0,0,orb.r,0,TAU);ctx.fillStyle='rgba(255,255,255,0.5)';ctx.fill(); }
+    ctx.restore();
+  });
+
+  // ── 飞斧渲染 ──
+  axeProjectiles.forEach(a=>{
+    ctx.save(); ctx.translate(a.x, a.y);
+    ctx.rotate(a.spinAngle);
+    const evolved = a.evolved;
+    const r = a.r;
+    // 斧柄
+    ctx.fillStyle = evolved ? '#8b0000' : '#6b3a2a';
+    ctx.fillRect(-r*0.15, -r*0.1, r*0.3, r*1.1);
+    // 斧头
+    const g2=ctx.createRadialGradient(-r*.2,-r*.2,0,0,0,r);
+    g2.addColorStop(0, evolved?'#ff4444':'#e0c080');
+    g2.addColorStop(1, evolved?'#880000':'#8b6914');
+    ctx.beginPath();
+    ctx.moveTo(-r*.15, -r*.5);
+    ctx.lineTo(-r, -r*.1);
+    ctx.lineTo(-r*.8,  r*.4);
+    ctx.lineTo( r*.15,-r*.5);
+    ctx.closePath();
+    ctx.fillStyle=g2; ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=1; ctx.stroke();
+    if(evolved){
+      // 进化：红色光晕
+      const eg=ctx.createRadialGradient(0,0,0,0,0,r*2);
+      eg.addColorStop(0,'rgba(255,50,0,0.4)'); eg.addColorStop(1,'transparent');
+      ctx.beginPath(); ctx.arc(0,0,r*2,0,TAU); ctx.fillStyle=eg; ctx.fill();
+    }
+    ctx.restore();
+  });
+
   // enemies
   enemies.forEach(e=>{
     if(e.x<vx0-50||e.x>vx1+50||e.y<vy0-50||e.y>vy1+50) return;
@@ -2882,7 +3155,7 @@ function gameLoop(ts){
   if(gState==='play'){
     gameTime+=dt;
     updatePlayer(dt); updateWeapons(dt); updateBullets(dt);
-    updateOrbitalSatellites(dt);
+    updateOrbitalSatellites(dt); updateDurianOrbs(dt); updateAxeProjectiles(dt);
     updateEnemies(dt); updateGems(dt); updateFragPickups(dt);
     updateParticles(dt); updateShockwaves(dt); updateArena(dt); updateBossDropItems(dt); updateBlueprintPickups(dt); updateEquipDrops(dt); updateSpawner(dt);
     updateHUD();
@@ -2941,6 +3214,7 @@ function startGame(){
   gameTime=0;dt=0;lastTs=0; killCount=0;totalDmgDealt=0;runFragments=0;runBlueprints=[];
   wave=1;waveTimer=0;spawnTimer=0.1; bossesDefeated=0;
   bullets=[];enemies=[];gems=[];particles=[];shockwaves=[];fragPickups=[];orbitalSatellites=[];bossDropItems=[];blueprintPickups=[];equipDrops=[];runEquips=[];
+  durianOrbs=[]; axeProjectiles=[]; durianAngle=0;
   arena.active=false; arena.r=0; arena.bossUid=-1;
   shockRingTime=0;
   levelUpQueue=0;levelUpActive=false;_uid=0; gState='play';

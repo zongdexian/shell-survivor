@@ -4393,18 +4393,18 @@ function updateWeaponUI(){
 
     const wRow = document.createElement('div');
     wRow.className = 'wbar-row';
-    player.weapons.slice(0,6).forEach(w=>{
+    player.weapons.forEach(w=>{
       const def = WEAPON_DEFS[w.defId];
       if(!def) return;
       const el = document.createElement('div');
       el.className = 'weapon-slot' + (w.evolved?' w-evolved':'');
-      el.innerHTML = `${def.icon}<span>${def.name}</span><div class="weapon-lvl">${w.evolved?'★':''}Lv${w.level}</div>`;
+      el.innerHTML = `${def.icon}<div class="weapon-lvl">${w.evolved?'★':''}Lv${w.level}</div>`;
       wRow.appendChild(el);
     });
     bar.appendChild(wRow);
   }
 
-  // ── 下排：被动（每行最多6格）──
+  // ── 下排：被动（每行最多6格，超过6个自动换行）──
   const passiveIds = Object.keys(playerPassives).filter(pid=>playerPassives[pid]>0);
   if(passiveIds.length > 0){
     const pLabel = document.createElement('div');
@@ -4412,18 +4412,21 @@ function updateWeaponUI(){
     pLabel.textContent = '被动';
     bar.appendChild(pLabel);
 
-    const pRow = document.createElement('div');
-    pRow.className = 'wbar-row';
-    passiveIds.slice(0,6).forEach(pid=>{
-      const def = PASSIVE_DEFS[pid];
-      if(!def) return;
-      const lv = playerPassives[pid];
-      const el = document.createElement('div');
-      el.className = 'weapon-slot p-slot';
-      el.innerHTML = `${def.icon}<span>${def.name}</span><div class="weapon-lvl">Lv${lv}</div>`;
-      pRow.appendChild(el);
-    });
-    bar.appendChild(pRow);
+    // 每6个一行，自动换行，不截断
+    for(let rowStart=0; rowStart<passiveIds.length; rowStart+=6){
+      const pRow = document.createElement('div');
+      pRow.className = 'wbar-row';
+      passiveIds.slice(rowStart, rowStart+6).forEach(pid=>{
+        const def = PASSIVE_DEFS[pid];
+        if(!def) return;
+        const lv = playerPassives[pid];
+        const el = document.createElement('div');
+        el.className = 'weapon-slot p-slot';
+        el.innerHTML = `${def.icon}<div class="weapon-lvl">Lv${lv}</div>`;
+        pRow.appendChild(el);
+      });
+      bar.appendChild(pRow);
+    }
   }
 }
 

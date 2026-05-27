@@ -2604,8 +2604,9 @@ function updateGarlicAura(delta){
 }
 
 // ── 圣水/净罪圣水：地面火池 ──
-let waterZones = []; // [{x,y,r,dmg,life,maxLife,evolved}]
+let waterZones = [];
 let waterCooldown = 0;
+let _waterAngle = 0; // 净罪圣水顺时针掉落角度计数器
 
 function updateHolyWater(delta){
   const wi = player.weapons.find(w=>w.defId==='holywater');
@@ -2613,27 +2614,39 @@ function updateHolyWater(delta){
   const rate = (WEAPON_DEFS.holywater.fireRate + wi.bonusRate) * playerStats.cooldown;
   waterCooldown -= delta;
   if(waterCooldown<=0){
-    waterCooldown = 1/rate;
-    // 随机在屏幕内一个位置砸瓶
-    const tx = cam.x + rng(-CW/3, CW/3);
-    const ty = cam.y + rng(-CH/4, CH/4);
-    const r  = (WEAPON_DEFS.holywater.range + (wi.bonusRange||0)) * playerStats.area * (wi.evolved?3.5:1);
-    const count = 1 + (wi.bonusCount||0) + playerStats.amount;
-    for(let i=0;i<count;i++){
-      waterZones.push({
-        x: tx+rng(-60,60), y: ty+rng(-60,60),
-        r, dmg: (WEAPON_DEFS.holywater.damage+wi.bonusDmg)*player.dmgMult*playerStats.might,
-        life: (WEAPON_DEFS.holywater.duration + (wi.bonusDur||0)) * playerStats.duration,
-        maxLife: (WEAPON_DEFS.holywater.duration + (wi.bonusDur||0)) * playerStats.duration,
-        hitCooldowns:{}, evolved: wi.evolved,
-      });
+    waterCooldown = 1/Math.max(0.1,rate);
+    const r   = (WEAPON_DEFS.holywater.range + (wi.bonusRange||0)) * playerStats.area * (wi.evolved?3.5:1);
+    const dmg = (WEAPON_DEFS.holywater.damage+wi.bonusDmg)*player.dmgMult*playerStats.might;
+    const life= (WEAPON_DEFS.holywater.duration + (wi.bonusDur||0)) * playerStats.duration;
+    const count = 1 + (wi.bonusCount||0) + Math.floor(playerStats.amount);
+
+    if(wi.evolved){
+      // 净罪圣水：以玩家为圆心，顺时针依次在各方向落下
+      const orbitR = 120 * playerStats.area;
+      for(let i=0;i<count;i++){
+        const a = _waterAngle + (TAU/count)*i;
+        const tx = player.x + Math.cos(a)*orbitR;
+        const ty = player.y + Math.sin(a)*orbitR;
+        waterZones.push({ x:tx, y:ty, r, dmg, life, maxLife:life, hitCooldowns:{}, evolved:true });
+        spawnParticles(tx,ty,'#74b9ff',6,80,.3);
+      }
+      _waterAngle += TAU/8; // 每次顺时针转45°
+    } else {
+      // 普通圣水：随机分散在屏幕不同区域（不集中在一个点）
+      for(let i=0;i<count;i++){
+        // 在屏幕内随机位置，确保分散
+        const tx = cam.x + rng(-CW*0.42, CW*0.42);
+        const ty = cam.y + rng(-CH*0.38, CH*0.38);
+        waterZones.push({ x:tx, y:ty, r, dmg, life, maxLife:life, hitCooldowns:{}, evolved:false });
+        spawnParticles(tx,ty,'#74b9ff',4,60,.25);
+      }
     }
   }
   for(let i=waterZones.length-1;i>=0;i--){
     const z=waterZones[i];
     z.life-=delta;
-    // 净罪圣水：火池向玩家移动
-    if(z.evolved){ const ang=Math.atan2(player.y-z.y,player.x-z.x); z.x+=Math.cos(ang)*30*delta; z.y+=Math.sin(ang)*30*delta; }
+    // 净罪圣水：火池向玩家缓慢移动
+    if(z.evolved){ const ang=Math.atan2(player.y-z.y,player.x-z.x); z.x+=Math.cos(ang)*28*delta; z.y+=Math.sin(ang)*28*delta; }
     if(z.life<=0){ waterZones.splice(i,1); continue; }
     for(const uid in z.hitCooldowns){ z.hitCooldowns[uid]-=delta; if(z.hitCooldowns[uid]<=0) delete z.hitCooldowns[uid]; }
     for(let j=0;j<enemies.length;j++){
@@ -2660,8 +2673,12 @@ function updateLightning(delta){
     const count = 1 + (wi.bonusCount||0) + Math.floor(playerStats.amount);
     const range = (WEAPON_DEFS.lightning.range + wi.bonusRange) * playerStats.area;
     const dmg   = (WEAPON_DEFS.lightning.damage+wi.bonusDmg)*player.dmgMult*playerStats.might;
-    // 找范围内随机敌人
-    const cands = enemies.filter(e=>dist(player,e)<range*2);
+    // 只在屏幕可见范围内找目标（闪电不打屏外的怪）
+    const hw=CW/2/camZoom, hh=CH/2/camZoom;
+    const cands = enemies.filter(e=>{
+      const inScreen = Math.abs(e.x-cam.x)<hw && Math.abs(e.y-cam.y)<hh;
+      return inScreen && dist(player,e)<range*2;
+    });
     shuffle(cands).slice(0,count).forEach(e=>{
       dealDmg(e, dmg);
       lightningBolts.push({x:e.x,y:e.y,life:.3,maxLife:.3,r:20,evolved:wi.evolved});
@@ -2676,8 +2693,9 @@ function updateLightning(delta){
       }
     });
     if(cands.length===0){
-      // 随机屏幕位置
-      const tx=cam.x+rng(-CW/3,CW/3), ty=cam.y+rng(-CH/3,CH/3);
+      // 没有屏幕内目标则随机打屏幕内某处
+      const hw2=CW/2/camZoom*0.8, hh2=CH/2/camZoom*0.8;
+      const tx=cam.x+rng(-hw2,hw2), ty=cam.y+rng(-hh2,hh2);
       lightningBolts.push({x:tx,y:ty,life:.3,maxLife:.3,r:20,evolved:wi.evolved});
     }
   }
@@ -3483,7 +3501,7 @@ function drawEnemyBasic(e){
   if(e.flashTimer<=0){
     // 普通怪慢呼吸(1.2Hz)，精英怪稍快(1.6Hz)
     const breathHz = e.isElite ? 1.6 : 1.2;
-    const breathAmp = e.isElite ? 0.06 : 0.04; // 精英呼吸幅度更大
+    const breathAmp = e.isElite ? 0.14 : 0.10; // 幅度加大，清晰可见
     const bs = 1.0 + Math.sin(shockRingTime * breathHz * TAU + e.breathOffset) * breathAmp;
     ctx.scale(bs, bs);
   }
@@ -3531,7 +3549,7 @@ function drawBoss(e){
   ctx.save(); ctx.translate(e.x,e.y);
   // Boss呼吸：幅度更大，更有压迫感
   if(e.flashTimer<=0){
-    const bs=1.0+Math.sin(shockRingTime*1.8*TAU+(e.breathOffset||0))*0.07;
+    const bs=1.0+Math.sin(shockRingTime*1.8*TAU+(e.breathOffset||0))*0.16; // Boss呼吸更明显
     ctx.scale(bs,bs);
   }
   // Boss光晕
@@ -3626,17 +3644,50 @@ function updateWeapons(delta){
 
     Audio.shoot(w.defId);
 
-    // ── 鞭子 / 血鞭：左右水平挥击 ──
+    // ── 鞭子 / 血鞭：左右扇形扫击特效 ──
     if(def.type==='whip'){
-      // 血鞭：必定暴击×2，吸血
       const isBloody = w.evolved && w.superSpec==='crit2x_lifesteal';
       const whipDmg  = isBloody ? dmg*2 : dmg;
-      const whipColor= isBloody ? '#e74c3c' : w.evolved ? '#fd79a8' : '#f39c12';
-      const whipDef  = {...def, damage:whipDmg, bulletSpeed:300, bulletColor:whipColor, bulletR:bulletR*(isBloody?1.6:1.2)};
-      for(let i=0;i<count*(isBloody?2:1);i++){
-        spawnBullet(player.x,player.y, i%2===0?rng(-0.28,0.28):Math.PI+rng(-0.28,0.28), whipDef,'player',null,whipDef.bulletR);
-      }
-      if(isBloody){ player.hp=Math.min(player.maxHp, player.hp+whipDmg*0.15); }
+      const whipLen  = rng2; // 鞭子长度
+      const whipHalfAngle = 0.45 + (w.bonusArea||0)*0.3; // 扇形半角
+      const hits = count + (isBloody?1:0);
+      // 左右各扫一次（左=朝左，右=朝右）
+      [-1, 1].forEach(side=>{
+        const baseAng = side < 0 ? Math.PI : 0; // 左=180°，右=0°
+        // 即时 AOE 判定：扇形区域内的所有敌人
+        for(let j=0;j<enemies.length;j++){
+          const e=enemies[j];
+          const dx=e.x-player.x, dy=e.y-player.y;
+          const ed=Math.hypot(dx,dy);
+          if(ed>whipLen+e.r) continue;
+          const ang=Math.atan2(dy,dx);
+          let diff=ang-baseAng;
+          while(diff>Math.PI) diff-=TAU;
+          while(diff<-Math.PI) diff+=TAU;
+          if(Math.abs(diff)<whipHalfAngle){
+            dealDmg(e, whipDmg);
+            if(isBloody){ player.hp=Math.min(player.maxHp,player.hp+whipDmg*0.15); }
+          }
+        }
+        // 特效：扫击弧线粒子
+        const color = isBloody?'#e74c3c':w.evolved?'#fd79a8':'#f39c12';
+        const arcSteps = 8;
+        for(let k=0;k<=arcSteps;k++){
+          const a = baseAng + (k/arcSteps - 0.5)*whipHalfAngle*2;
+          const px = player.x+Math.cos(a)*whipLen*0.85;
+          const py = player.y+Math.sin(a)*whipLen*0.85;
+          spawnParticles(px,py,color,3,100,.3);
+        }
+        // 视觉冲击：在鞭子末端产生冲击波
+        const tipX=player.x+Math.cos(baseAng)*whipLen;
+        const tipY=player.y+Math.sin(baseAng)*whipLen;
+        spawnShockwave(tipX,tipY,whipLen*0.5,color);
+        spawnParticles(tipX,tipY,color,8,140,.4);
+      });
+      // 生成视觉弹（快速横扫，实际已AOE判定，弹只作视觉）
+      const whipDef={...def,damage:0,bulletSpeed:900,bulletColor:isBloody?'#e74c3c':'#f39c12',bulletR:bulletR*0.7,pierce:-1};
+      spawnBullet(player.x,player.y, 0,          whipDef,'player',null,bulletR*0.7);
+      spawnBullet(player.x,player.y, Math.PI,    whipDef,'player',null,bulletR*0.7);
       return;
     }
 
@@ -3668,7 +3719,7 @@ function updateWeapons(delta){
             damage:dmg, range:rng2, traveled:0,
             owner:'player', aoe:0, pierce:999,
             hit:new Set(), trail:[],
-            isAxe:true, spinAngle:rng(0,TAU),
+            isAxe:true, isSpiral:true, spinAngle:rng(0,TAU),
             isLaser:false, isGrenade:false, isBouncer:false,
           };
           bullets.push(b);
@@ -3781,8 +3832,11 @@ function updateBullets(delta){
     const b=bullets[i];
     b.trail.push({x:b.x,y:b.y}); if(b.trail.length>8) b.trail.shift();
 
-    // 斧头重力
-    if(b.isAxe){ b.vy += 520*delta; b.spinAngle=(b.spinAngle||0)+9*delta; }
+    // 斧头重力（普通斧头有抛物线，死亡旋风进化后纯外扩不下落）
+    if(b.isAxe){
+      if(!b.isSpiral) b.vy += 520*delta; // 只有普通斧头受重力
+      b.spinAngle=(b.spinAngle||0)+9*delta;
+    }
 
     // 回旋镖：独立处理位移+折返+消亡，不走通用逻辑
     if(b.isBoomerang){
@@ -4988,9 +5042,9 @@ function render(){
     const skipFrame=isHurt&&Math.floor(p.invincible*14)%2===0;
     if(!skipFrame){
       // 呼吸动画：sin波形控制上下浮动和轻微缩放
-      const breathY=Math.sin(_breathPhase*1.4)*1.8;
-      const bsY=1.0+Math.sin(_breathPhase*1.4)*0.025;
-      const bsX=1.0-Math.sin(_breathPhase*1.4)*0.012;
+      const breathY=Math.sin(_breathPhase*1.4)*3.5;        // 上下浮动加大
+      const bsY=1.0+Math.sin(_breathPhase*1.4)*0.06;    // 垂直缩放更明显
+      const bsX=1.0-Math.sin(_breathPhase*1.4)*0.03;    // 水平反向
       // 视觉比例1:1：普通怪物r≈6~7，emoji显示约12~14px
       // 玩家图片高宽比122/80≈1.525，目标drawH≈14px → drawW≈9
       // 用 p.r * 1.6 → drawW=14.4，视觉与zombie基本持平
@@ -5184,7 +5238,7 @@ function startGame(){
   wave=1;waveTimer=0;spawnTimer=0.1; bossesDefeated=0;
   bullets=[];enemies=[];gems=[];particles=[];shockwaves=[];fragPickups=[];orbitalSatellites=[];bossDropItems=[];blueprintPickups=[];equipDrops=[];runEquips=[];
   durianOrbs=[]; axeProjectiles=[]; durianAngle=0;
-  bibleOrbs=[]; bibleAngle=0; waterZones=[]; waterCooldown=0;
+  bibleOrbs=[]; bibleAngle=0; waterZones=[]; waterCooldown=0; _waterAngle=0;
   lightningCooldown=0; lightningBolts=[]; birdBombs=[]; birdBombZones=[]; birdAngle=[0,Math.PI];
   birdCooldowns={peachone:0,ebonywings:0,vandalier:0};
   birdCooldowns={peachone:0,ebonywings:0}; garlicAura={hitCooldowns:{},timer:0};
